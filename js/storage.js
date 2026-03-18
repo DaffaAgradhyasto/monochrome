@@ -2737,6 +2737,281 @@ export const contentBlockingSettings = {
     },
 };
 
+export const spatialAudioSettings = {
+    STORAGE_KEY_ENABLED: 'spatial-audio-enabled',
+    STORAGE_KEY_PRESET: 'spatial-audio-preset',
+    STORAGE_KEY_POSITION: 'spatial-audio-position',
+    STORAGE_KEY_ROOM_SIZE: 'spatial-audio-room-size',
+    STORAGE_KEY_REVERB: 'spatial-audio-reverb',
+
+    isEnabled() {
+        return localStorage.getItem(this.STORAGE_KEY_ENABLED) === 'true';
+    },
+    setEnabled(enabled) {
+        localStorage.setItem(this.STORAGE_KEY_ENABLED, enabled ? 'true' : 'false');
+    },
+    getPreset() {
+        return localStorage.getItem(this.STORAGE_KEY_PRESET) || 'center';
+    },
+    setPreset(preset) {
+        localStorage.setItem(this.STORAGE_KEY_PRESET, preset);
+    },
+    getPosition() {
+        try {
+            const stored = localStorage.getItem(this.STORAGE_KEY_POSITION);
+            return stored ? JSON.parse(stored) : { x: 0, y: 0, z: 0 };
+        } catch {
+            return { x: 0, y: 0, z: 0 };
+        }
+    },
+    setPosition(position) {
+        localStorage.setItem(this.STORAGE_KEY_POSITION, JSON.stringify(position));
+    },
+    getRoomSize() {
+        const val = parseFloat(localStorage.getItem(this.STORAGE_KEY_ROOM_SIZE));
+        return isNaN(val) ? 50 : val;
+    },
+    setRoomSize(size) {
+        localStorage.setItem(this.STORAGE_KEY_ROOM_SIZE, size.toString());
+    },
+    getReverbEnabled() {
+        return localStorage.getItem(this.STORAGE_KEY_REVERB) === 'true';
+    },
+    setReverbEnabled(enabled) {
+        localStorage.setItem(this.STORAGE_KEY_REVERB, enabled ? 'true' : 'false');
+    },
+};
+
+export const frequencyTuningSettings = {
+    STORAGE_KEY_ENABLED: 'frequency-tuning-enabled',
+    STORAGE_KEY_TUNING: 'frequency-tuning-value',
+
+    isEnabled() {
+        return localStorage.getItem(this.STORAGE_KEY_ENABLED) === 'true';
+    },
+    setEnabled(enabled) {
+        localStorage.setItem(this.STORAGE_KEY_ENABLED, enabled ? 'true' : 'false');
+    },
+    getTuning() {
+        const stored = localStorage.getItem(this.STORAGE_KEY_TUNING);
+        return stored || '440'; // Default A4 = 440Hz
+    },
+    setTuning(tuning) {
+        localStorage.setItem(this.STORAGE_KEY_TUNING, tuning);
+    },
+};
+
+export const wrappedSettings = {
+    STORAGE_KEY_YEAR_DATA: 'wrapped-year-data',
+    STORAGE_KEY_MONTHLY_DATA: 'wrapped-monthly-data',
+    STORAGE_KEY_LISTENING_HISTORY: 'listening-history',
+
+    getYearData(year) {
+        try {
+            const stored = localStorage.getItem(`${this.STORAGE_KEY_YEAR_DATA}-${year}`);
+            return stored ? JSON.parse(stored) : null;
+        } catch {
+            return null;
+        }
+    },
+    setYearData(year, data) {
+        localStorage.setItem(`${this.STORAGE_KEY_YEAR_DATA}-${year}`, JSON.stringify(data));
+    },
+    getMonthlyData(year, month) {
+        try {
+            const stored = localStorage.getItem(`${this.STORAGE_KEY_MONTHLY_DATA}-${year}-${month}`);
+            return stored ? JSON.parse(stored) : null;
+        } catch {
+            return null;
+        }
+    },
+    setMonthlyData(year, month, data) {
+        localStorage.setItem(`${this.STORAGE_KEY_MONTHLY_DATA}-${year}-${month}`, JSON.stringify(data));
+    },
+    getListeningHistory() {
+        try {
+            const stored = localStorage.getItem(this.STORAGE_KEY_LISTENING_HISTORY);
+            return stored ? JSON.parse(stored) : [];
+        } catch {
+            return [];
+        }
+    },
+    addToHistory(track, timestamp = Date.now()) {
+        const history = this.getListeningHistory();
+        history.push({ track, timestamp });
+        // Keep only last 10000 entries
+        if (history.length > 10000) {
+            history.shift();
+        }
+        localStorage.setItem(this.STORAGE_KEY_LISTENING_HISTORY, JSON.stringify(history));
+    },
+};
+
+export const socialSettings = {
+    STORAGE_KEY_FRIENDS: 'social-friends',
+    STORAGE_KEY_ACTIVITY_VISIBLE: 'social-activity-visible',
+    STORAGE_KEY_FOLLOWED_ARTISTS: 'social-followed-artists',
+
+    getFriends() {
+        try {
+            const stored = localStorage.getItem(this.STORAGE_KEY_FRIENDS);
+            return stored ? JSON.parse(stored) : [];
+        } catch {
+            return [];
+        }
+    },
+    addFriend(friendId, friendData) {
+        const friends = this.getFriends();
+        if (!friends.find((f) => f.id === friendId)) {
+            friends.push({ id: friendId, ...friendData, addedAt: Date.now() });
+            localStorage.setItem(this.STORAGE_KEY_FRIENDS, JSON.stringify(friends));
+        }
+    },
+    removeFriend(friendId) {
+        const friends = this.getFriends();
+        const filtered = friends.filter((f) => f.id !== friendId);
+        localStorage.setItem(this.STORAGE_KEY_FRIENDS, JSON.stringify(filtered));
+    },
+    isActivityVisible() {
+        return localStorage.getItem(this.STORAGE_KEY_ACTIVITY_VISIBLE) !== 'false';
+    },
+    setActivityVisible(visible) {
+        localStorage.setItem(this.STORAGE_KEY_ACTIVITY_VISIBLE, visible ? 'true' : 'false');
+    },
+    getFollowedArtists() {
+        try {
+            const stored = localStorage.getItem(this.STORAGE_KEY_FOLLOWED_ARTISTS);
+            return stored ? JSON.parse(stored) : [];
+        } catch {
+            return [];
+        }
+    },
+    followArtist(artistId, artistData) {
+        const followed = this.getFollowedArtists();
+        if (!followed.find((a) => a.id === artistId)) {
+            followed.push({ id: artistId, ...artistData, followedAt: Date.now() });
+            localStorage.setItem(this.STORAGE_KEY_FOLLOWED_ARTISTS, JSON.stringify(followed));
+        }
+    },
+    unfollowArtist(artistId) {
+        const followed = this.getFollowedArtists();
+        const filtered = followed.filter((a) => a.id !== artistId);
+        localStorage.setItem(this.STORAGE_KEY_FOLLOWED_ARTISTS, JSON.stringify(filtered));
+    },
+    isFollowingArtist(artistId) {
+        return this.getFollowedArtists().some((a) => a.id === artistId);
+    },
+};
+
+export const parentalControlsSettings = {
+    STORAGE_KEY_ENABLED: 'parental-controls-enabled',
+    STORAGE_KEY_PIN: 'parental-controls-pin',
+    STORAGE_KEY_EXPLICIT_FILTER: 'parental-controls-explicit-filter',
+    STORAGE_KEY_ALLOWED_GENRES: 'parental-controls-allowed-genres',
+
+    isEnabled() {
+        return localStorage.getItem(this.STORAGE_KEY_ENABLED) === 'true';
+    },
+    setEnabled(enabled) {
+        localStorage.setItem(this.STORAGE_KEY_ENABLED, enabled ? 'true' : 'false');
+    },
+    getPin() {
+        return localStorage.getItem(this.STORAGE_KEY_PIN) || null;
+    },
+    setPin(pin) {
+        localStorage.setItem(this.STORAGE_KEY_PIN, pin);
+    },
+    verifyPin(pin) {
+        return this.getPin() === pin;
+    },
+    isExplicitFiltered() {
+        return localStorage.getItem(this.STORAGE_KEY_EXPLICIT_FILTER) !== 'false';
+    },
+    setExplicitFilter(enabled) {
+        localStorage.setItem(this.STORAGE_KEY_EXPLICIT_FILTER, enabled ? 'true' : 'false');
+    },
+    getAllowedGenres() {
+        try {
+            const stored = localStorage.getItem(this.STORAGE_KEY_ALLOWED_GENRES);
+            return stored ? JSON.parse(stored) : null;
+        } catch {
+            return null;
+        }
+    },
+    setAllowedGenres(genres) {
+        if (genres === null) {
+            localStorage.removeItem(this.STORAGE_KEY_ALLOWED_GENRES);
+        } else {
+            localStorage.setItem(this.STORAGE_KEY_ALLOWED_GENRES, JSON.stringify(genres));
+        }
+    },
+};
+
+export const podcastSettings = {
+    STORAGE_KEY_SUBSCRIPTIONS: 'podcast-subscriptions',
+    STORAGE_KEY_PLAYED_EPISODES: 'podcast-played-episodes',
+    STORAGE_KEY_PLAYBACK_POSITIONS: 'podcast-playback-positions',
+
+    getSubscriptions() {
+        try {
+            const stored = localStorage.getItem(this.STORAGE_KEY_SUBSCRIPTIONS);
+            return stored ? JSON.parse(stored) : [];
+        } catch {
+            return [];
+        }
+    },
+    subscribe(podcastId, podcastData) {
+        const subs = this.getSubscriptions();
+        if (!subs.find((s) => s.id === podcastId)) {
+            subs.push({ id: podcastId, ...podcastData, subscribedAt: Date.now() });
+            localStorage.setItem(this.STORAGE_KEY_SUBSCRIPTIONS, JSON.stringify(subs));
+        }
+    },
+    unsubscribe(podcastId) {
+        const subs = this.getSubscriptions();
+        const filtered = subs.filter((s) => s.id !== podcastId);
+        localStorage.setItem(this.STORAGE_KEY_SUBSCRIPTIONS, JSON.stringify(filtered));
+    },
+    isSubscribed(podcastId) {
+        return this.getSubscriptions().some((s) => s.id === podcastId);
+    },
+    getPlayedEpisodes() {
+        try {
+            const stored = localStorage.getItem(this.STORAGE_KEY_PLAYED_EPISODES);
+            return stored ? JSON.parse(stored) : {};
+        } catch {
+            return {};
+        }
+    },
+    markEpisodePlayed(episodeId) {
+        const played = this.getPlayedEpisodes();
+        played[episodeId] = Date.now();
+        localStorage.setItem(this.STORAGE_KEY_PLAYED_EPISODES, JSON.stringify(played));
+    },
+    isEpisodePlayed(episodeId) {
+        return !!this.getPlayedEpisodes()[episodeId];
+    },
+    getPlaybackPosition(episodeId) {
+        try {
+            const stored = localStorage.getItem(this.STORAGE_KEY_PLAYBACK_POSITIONS);
+            const positions = stored ? JSON.parse(stored) : {};
+            return positions[episodeId] || 0;
+        } catch {
+            return 0;
+        }
+    },
+    setPlaybackPosition(episodeId, position) {
+        try {
+            const stored = localStorage.getItem(this.STORAGE_KEY_PLAYBACK_POSITIONS);
+            const positions = stored ? JSON.parse(stored) : {};
+            positions[episodeId] = position;
+            localStorage.setItem(this.STORAGE_KEY_PLAYBACK_POSITIONS, JSON.stringify(positions));
+        } catch {
+            // Ignore errors
+        }
+    },
+};
+
 export const keyboardShortcuts = {
     STORAGE_KEY: 'keyboard-shortcuts',
 

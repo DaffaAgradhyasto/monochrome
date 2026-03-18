@@ -2,7 +2,8 @@
 // Shared Audio Context Manager - handles EQ and provides context for visualizer
 // Supports 3-32 parametric EQ bands
 
-import { equalizerSettings, monoAudioSettings } from './storage.js';
+import { equalizerSettings, monoAudioSettings, spatialAudioSettings, frequencyTuningSettings } from './storage.js';
+import { spatialAudioManager } from './spatial-audio.js';
 
 // Generate frequency array for given number of bands using logarithmic spacing
 function generateFrequencies(bandCount, minFreq = 20, maxFreq = 20000) {
@@ -340,6 +341,9 @@ class AudioContextManager {
 
             this.monoMergerNode = this.audioContext.createChannelMerger(2);
 
+            // Initialize spatial audio
+            spatialAudioManager.init(this.audioContext);
+
             this._connectGraph();
 
             this.isInitialized = true;
@@ -378,7 +382,7 @@ class AudioContextManager {
     }
 
     /**
-     * Connect the audio graph based on EQ and mono audio state
+     * Connect the audio graph based on EQ, mono audio, spatial audio, and frequency tuning state
      */
     _connectGraph() {
         if (!this.isInitialized || !this.source || !this.audioContext) return;
@@ -397,6 +401,15 @@ class AudioContextManager {
             if (this.monoMergerNode) {
                 try {
                     this.monoMergerNode.disconnect();
+                } catch {
+                    // Ignore if not connected
+                }
+            }
+
+            // Disconnect spatial audio if exists
+            if (spatialAudioManager.isReady()) {
+                try {
+                    spatialAudioManager.getPannerNode().disconnect();
                 } catch {
                     // Ignore if not connected
                 }
@@ -422,7 +435,7 @@ class AudioContextManager {
             }
 
             if (this.isEQEnabled && this.filters.length > 0) {
-                // EQ enabled: lastNode -> preamp -> EQ filters -> output -> analyser -> volume -> destination
+                // EQ enabled: lastNode -> preamp -> EQ filters -> output
                 // Connect filter chain
                 for (let i = 0; i < this.filters.length - 1; i++) {
                     this.filters[i].connect(this.filters[i + 1]);
@@ -435,16 +448,26 @@ class AudioContextManager {
                     lastNode.connect(this.filters[0]);
                 }
                 this.filters[this.filters.length - 1].connect(this.outputNode);
-                this.outputNode.connect(this.analyser);
-                this.analyser.connect(this.volumeNode);
-                this.volumeNode.connect(this.audioContext.destination);
+                lastNode = this.outputNode;
                 console.log('[AudioContext] EQ connected');
             } else {
-                // EQ disabled: lastNode -> analyser -> volume -> destination
-                lastNode.connect(this.analyser);
-                this.analyser.connect(this.volumeNode);
-                this.volumeNode.connect(this.audioContext.destination);
+                // EQ disabled: lastNode -> outputNode
+                lastNode.connect(this.outputNode);
+                lastNode = this.outputNode;
             }
+
+            // Apply spatial audio if enabled
+            if (spatialAudioManager.isActive()) {
+                const pannerNode = spatialAudioManager.getPannerNode();
+                lastNode.connect(pannerNode);
+                lastNode = pannerNode;
+                console.log('[AudioContext] Spatial audio connected');
+            }
+
+            // Final chain: lastNode -> analyser -> volume -> destination
+            lastNode.connect(this.analyser);
+            this.analyser.connect(this.volumeNode);
+            this.volumeNode.connect(this.audioContext.destination);
 
             // Notify visualizers that graph has been reconnected
             this._notifyGraphChange();
@@ -782,6 +805,31 @@ class AudioContextManager {
             console.warn('[AudioContext] Failed to import EQ settings:', e);
             return false;
         }
+    }
+
+    /**
+     * Toggle spatial audio on/off
+     */
+    toggleSpatialAudio(enabled) {
+        spatialAudioManager.toggle(enabled);
+        if (this.isInitialized) {
+            this._connectGraph();
+        }
+        return spatialAudioManager.isActive();
+    }
+
+    /**
+     * Check if spatial audio is active
+     */
+    isSpatialAudioActive() {
+        return spatialAudioManager.isActive();
+    }
+
+    /**
+     * Get spatial audio manager
+     */
+    getSpatialAudioManager() {
+        return spatialAudioManager;
     }
 }
 
