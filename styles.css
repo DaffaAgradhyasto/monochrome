@@ -4036,6 +4036,9 @@ input:checked + .slider::before {
     align-items: center;
     justify-content: center;
     gap: 2rem;
+    position: relative;
+    z-index: 15;
+    pointer-events: auto;
 }
 
 .fullscreen-buttons button {
@@ -5389,6 +5392,8 @@ input:checked + .slider::before {
     gap: 0.25rem;
     font-size: 0.85rem;
     font-weight: 500;
+    z-index: 20;
+    pointer-events: auto;
 }
 
 .playback-speed-btn .speed-value,
@@ -5412,7 +5417,8 @@ input:checked + .slider::before {
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
     width: 280px;
-    z-index: 1000;
+    z-index: 1001;
+    pointer-events: auto;
     animation: slideUp 0.2s ease-out;
 }
 
