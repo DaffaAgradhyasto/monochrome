@@ -1091,6 +1091,21 @@ ul {
     animation: slide-up var(--transition-slow) var(--ease-out-back);
 }
 
+/* Miniplayer drag-down-to-close styles */
+.now-playing-bar.dragging {
+    transition: none;
+}
+
+.now-playing-bar.dismissed {
+    transform: translateY(150%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.now-playing-bar.dismissing {
+    transition: transform 0.3s var(--ease-out-back), opacity 0.3s ease-out;
+}
+
 :root[data-theme='white'] .now-playing-bar {
     background-color: color-mix(in srgb, var(--card) 80%, transparent);
     border-color: rgb(0, 0, 0, 0.1);

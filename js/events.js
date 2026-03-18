@@ -2116,6 +2116,127 @@ export function initializeTrackInteractions(player, api, mainContent, contextMen
             }
         });
     }
+
+    // Miniplayer drag-down-to-close functionality
+    const nowPlayingBar = document.querySelector('.now-playing-bar');
+    let dragStartY = 0;
+    let dragStartTime = 0;
+    let isDraggingPlayer = false;
+    let currentTranslateY = 0;
+
+    const handlePlayerTouchStart = (e) => {
+        // Only allow dragging if touch starts on the player bar itself or the track info area
+        // Ignore if touch starts on buttons, progress bar, or volume controls
+        const target = e.target;
+        const isButton = target.closest('button');
+        const isProgress = target.closest('.progress-container');
+        const isVolumeControl = target.closest('.volume-controls');
+
+        if (isButton || isProgress || isVolumeControl) {
+            return;
+        }
+
+        dragStartY = e.touches[0].clientY;
+        dragStartTime = Date.now();
+        isDraggingPlayer = false;
+        currentTranslateY = 0;
+    };
+
+    const handlePlayerTouchMove = (e) => {
+        if (dragStartY === 0) return;
+
+        const currentY = e.touches[0].clientY;
+        const deltaY = currentY - dragStartY;
+
+        // Only start dragging if moving downward by at least 10px
+        if (deltaY > 10) {
+            if (!isDraggingPlayer) {
+                isDraggingPlayer = true;
+                nowPlayingBar.classList.add('dragging');
+            }
+
+            // Only allow downward dragging (positive deltaY)
+            currentTranslateY = Math.max(0, deltaY);
+
+            // Calculate opacity based on drag distance (fade out as dragging down)
+            const opacity = Math.max(0, 1 - (currentTranslateY / 200));
+
+            nowPlayingBar.style.transform = `translateY(${currentTranslateY}px)`;
+            nowPlayingBar.style.opacity = opacity;
+        }
+    };
+
+    const handlePlayerTouchEnd = () => {
+        if (!isDraggingPlayer) {
+            dragStartY = 0;
+            return;
+        }
+
+        const dragDuration = Date.now() - dragStartTime;
+        const dragDistance = currentTranslateY;
+
+        // Threshold for dismissing: dragged down more than 80px or fast swipe down (> 0.5px/ms)
+        const shouldDismiss = dragDistance > 80 || (dragDistance > 40 && dragDuration < 300);
+
+        if (shouldDismiss) {
+            // Dismiss the miniplayer
+            nowPlayingBar.classList.remove('dragging');
+            nowPlayingBar.classList.add('dismissing');
+
+            // Animate to fully dismissed state
+            nowPlayingBar.style.transform = 'translateY(150%)';
+            nowPlayingBar.style.opacity = '0';
+
+            // Stop the audio after a short delay to allow animation
+            setTimeout(() => {
+                player.activeElement.pause();
+                player.activeElement.currentTime = 0;
+                nowPlayingBar.classList.remove('dismissing');
+                nowPlayingBar.classList.add('dismissed');
+            }, 300);
+        } else {
+            // Snap back to original position
+            nowPlayingBar.classList.remove('dragging');
+            nowPlayingBar.style.transform = '';
+            nowPlayingBar.style.opacity = '';
+        }
+
+        // Reset drag state
+        dragStartY = 0;
+        dragStartTime = 0;
+        isDraggingPlayer = false;
+        currentTranslateY = 0;
+    };
+
+    const handlePlayerTouchCancel = () => {
+        if (isDraggingPlayer) {
+            nowPlayingBar.classList.remove('dragging');
+            nowPlayingBar.style.transform = '';
+            nowPlayingBar.style.opacity = '';
+        }
+        dragStartY = 0;
+        dragStartTime = 0;
+        isDraggingPlayer = false;
+        currentTranslateY = 0;
+    };
+
+    // Add touch event listeners to the now-playing-bar
+    if (nowPlayingBar) {
+        nowPlayingBar.addEventListener('touchstart', handlePlayerTouchStart, { passive: true });
+        nowPlayingBar.addEventListener('touchmove', handlePlayerTouchMove, { passive: true });
+        nowPlayingBar.addEventListener('touchend', handlePlayerTouchEnd);
+        nowPlayingBar.addEventListener('touchcancel', handlePlayerTouchCancel);
+    }
+
+    // When a new track is played, restore the miniplayer
+    audioPlayer.addEventListener('play', () => {
+        if (nowPlayingBar && nowPlayingBar.classList.contains('dismissed')) {
+            nowPlayingBar.classList.remove('dismissed');
+            nowPlayingBar.classList.remove('dismissing');
+            nowPlayingBar.style.transform = '';
+            nowPlayingBar.style.opacity = '';
+        }
+    });
 }
 
 function showSleepTimerModal(player) {
