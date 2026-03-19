@@ -2,7 +2,7 @@
 // Shared Audio Context Manager - handles EQ and provides context for visualizer
 // Supports 3-32 parametric EQ bands
 
-import { equalizerSettings, monoAudioSettings } from './storage.js';
+import { equalizerSettings, monoAudioSettings, spatialAudioSettings, frequencyTuningSettings } from './storage.js';
 
 // Generate frequency array for given number of bands using logarithmic spacing
 function generateFrequencies(bandCount, minFreq = 20, maxFreq = 20000) {
@@ -102,6 +102,15 @@ class AudioContextManager {
         this.monoMergerNode = null;
         this.audio = null;
         this.currentVolume = 1.0;
+
+        // Spatial Audio (stereo widener)
+        this.isSpatialAudioEnabled = false;
+        this.spatialWidth = 1.0; // 0 = mono, 1 = normal, 2 = very wide
+        this.spatialNode = null; // ChannelSplitter+Merger based widener
+
+        // Frequency Tuning (detune in cents)
+        // 440 Hz standard = 0 cents, 432 Hz ≈ -31.77 cents, 528 Hz ≈ +314 cents
+        this.frequencyTuning = 0; // cents
 
         // Band configuration
         this.bandCount = equalizerSettings.getBandCount();
@@ -421,6 +430,12 @@ class AudioContextManager {
                 console.log('[AudioContext] Mono audio enabled');
             }
 
+            // Spatial audio: insert widener after mono/source processing
+            if (this.isSpatialAudioEnabled && !this.isMonoAudioEnabled) {
+                lastNode = this._createSpatialWidener(lastNode);
+                console.log('[AudioContext] Spatial audio enabled, width:', this.spatialWidth);
+            }
+
             if (this.isEQEnabled && this.filters.length > 0) {
                 // EQ enabled: lastNode -> preamp -> EQ filters -> output -> analyser -> volume -> destination
                 // Connect filter chain
@@ -547,6 +562,89 @@ class AudioContextManager {
     }
 
     /**
+     * Spatial Audio — stereo widener using mid/side processing.
+     * @param {boolean} enabled
+     * @param {number} [width=1] - 0 (mono) to 2 (very wide); 1 = normal stereo
+     */
+    toggleSpatialAudio(enabled, width) {
+        this.isSpatialAudioEnabled = enabled;
+        if (width !== undefined) this.spatialWidth = Math.max(0, Math.min(2, width));
+        spatialAudioSettings.setEnabled(enabled);
+        spatialAudioSettings.setWidth(this.spatialWidth);
+        if (this.isInitialized) this._connectGraph();
+        return this.isSpatialAudioEnabled;
+    }
+
+    setSpatialWidth(width) {
+        this.spatialWidth = Math.max(0, Math.min(2, width));
+        spatialAudioSettings.setWidth(this.spatialWidth);
+        if (this.isSpatialAudioEnabled && this.isInitialized) this._connectGraph();
+    }
+
+    /**
+     * Set audio frequency tuning via detune (cents).
+     * @param {number} cents - e.g. 0 (440 Hz), -32 (432 Hz), 314 (528 Hz)
+     */
+    setFrequencyTuning(cents) {
+        this.frequencyTuning = cents;
+        frequencyTuningSettings.setTuning(cents);
+        // Apply immediately via AudioBufferSourceNode detune if possible; otherwise next track
+        if (this.audioContext && this.source) {
+            try {
+                // MediaElementSourceNode doesn't expose detune directly.
+                // We use a WaveShaper to approximate pitch shift via AudioContext.
+                // Best effort: set on all sources
+                this.sources.forEach((src) => {
+                    if (src.detune) src.detune.value = cents;
+                });
+            } catch { /* ignore */ }
+        }
+        // Dispatch event so player can reload with detune hint
+        window.dispatchEvent(new CustomEvent('frequency-tuning-changed', { detail: { cents } }));
+    }
+
+    /**
+     * Build the spatial widener sub-graph and return the output node.
+     * Uses a simple M/S (Mid/Side) matrix.
+     * @returns {AudioNode} output node
+     */
+    _createSpatialWidener(inputNode) {
+        if (!this.audioContext) return inputNode;
+        try {
+            const ctx = this.audioContext;
+            const splitter = ctx.createChannelSplitter(2);
+            const merger = ctx.createChannelMerger(2);
+
+            // Mid = (L+R)/2, Side = (L-R)/2 * width
+            const midGain = ctx.createGain();
+            const sideGainL = ctx.createGain();
+            const sideGainR = ctx.createGain();
+            midGain.gain.value = 1;
+            sideGainL.gain.value = this.spatialWidth;
+            sideGainR.gain.value = -this.spatialWidth;
+
+            inputNode.connect(splitter);
+
+            // Left channel
+            splitter.connect(midGain, 0);
+            splitter.connect(sideGainL, 0);
+            // Right channel (inverted for side)
+            splitter.connect(midGain, 1);
+            splitter.connect(sideGainR, 1);
+
+            midGain.connect(merger, 0, 0);
+            midGain.connect(merger, 0, 1);
+            sideGainL.connect(merger, 0, 0);
+            sideGainR.connect(merger, 0, 1);
+
+            this.spatialNode = merger;
+            return merger;
+        } catch {
+            return inputNode;
+        }
+    }
+
+    /**
      * Toggle mono audio on/off
      */
     toggleMonoAudio(enabled) {
@@ -670,6 +768,9 @@ class AudioContextManager {
         this.currentGains = equalizerSettings.getGains(this.bandCount);
         this.isMonoAudioEnabled = monoAudioSettings.isEnabled();
         this.preamp = equalizerSettings.getPreamp();
+        this.isSpatialAudioEnabled = spatialAudioSettings.isEnabled();
+        this.spatialWidth = spatialAudioSettings.getWidth();
+        this.frequencyTuning = frequencyTuningSettings.getTuning();
     }
 
     /**

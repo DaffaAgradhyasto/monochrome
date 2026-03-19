@@ -22,6 +22,7 @@ import {
 } from './storage.js';
 import { audioContextManager } from './audio-context.js';
 import { db } from './db.js';
+import { listeningStats } from './listening-stats.js';
 import Hls from 'hls.js';
 
 export class Player {
@@ -35,6 +36,7 @@ export class Player {
         this.originalQueueBeforeShuffle = [];
         this.currentQueueIndex = -1;
         this.shuffleActive = false;
+        this.smartShuffleEnabled = localStorage.getItem('smart-shuffle-enabled') === 'true';
         this.repeatMode = REPEAT_MODE.OFF;
         this.preloadCache = new Map();
         this.preloadAbortController = null;
@@ -1266,9 +1268,32 @@ export class Player {
                 tracksToShuffle.splice(this.currentQueueIndex, 1);
             }
 
-            for (let i = tracksToShuffle.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [tracksToShuffle[i], tracksToShuffle[j]] = [tracksToShuffle[j], tracksToShuffle[i]];
+            if (this.smartShuffleEnabled && tracksToShuffle.length > 1) {
+                // Weighted shuffle: tracks not recently played have higher probability
+                const weights = tracksToShuffle.map((t) => listeningStats.getShuffleWeight(t.id));
+                const totalWeight = weights.reduce((s, w) => s + w, 0);
+                const shuffled = [];
+                const remaining = [...tracksToShuffle];
+                const remainingWeights = [...weights];
+                while (remaining.length > 0) {
+                    let rand = Math.random() * remainingWeights.reduce((s, w) => s + w, 0);
+                    let idx = 0;
+                    for (let i = 0; i < remainingWeights.length; i++) {
+                        rand -= remainingWeights[i];
+                        if (rand <= 0) { idx = i; break; }
+                    }
+                    shuffled.push(remaining.splice(idx, 1)[0]);
+                    remainingWeights.splice(idx, 1);
+                }
+                tracksToShuffle.length = 0;
+                tracksToShuffle.push(...shuffled);
+                console.log(`[SmartShuffle] Weighted shuffle applied (total weight: ${totalWeight.toFixed(2)})`);
+            } else {
+                // Standard Fisher-Yates shuffle
+                for (let i = tracksToShuffle.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [tracksToShuffle[i], tracksToShuffle[j]] = [tracksToShuffle[j], tracksToShuffle[i]];
+                }
             }
 
             if (currentTrack) {
@@ -1287,6 +1312,12 @@ export class Player {
         this.preloadCache.clear();
         this.preloadNextTracks();
         this.saveQueueState();
+    }
+
+    /** Enable/disable Smart Shuffle mode */
+    setSmartShuffle(enabled) {
+        this.smartShuffleEnabled = !!enabled;
+        localStorage.setItem('smart-shuffle-enabled', enabled ? 'true' : 'false');
     }
 
     toggleRepeat() {

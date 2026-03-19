@@ -567,6 +567,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     initializeUIInteractions(player, api, ui);
     initializeKeyboardShortcuts(player, audioPlayer);
 
+    // Initialize AI DJ
+    import('./ai-dj.js').then(({ initAIDJ }) => initAIDJ(player));
+
+    // Initialize mood selector
+    import('./mood.js').then(({ renderMoodSelector, moodManager }) => {
+        window._moodManagerRef = { moodManager };
+        renderMoodSelector(document.getElementById('mood-chips'));
+    });
+
+    // Initialize AI Playlist Generator button
+    document.getElementById('ai-playlist-btn')?.addEventListener('click', async () => {
+        const { openAIPlaylistModal } = await import('./ai-playlist.js');
+        // Gather library tracks (liked tracks)
+        const libTracks = [];
+        try {
+            const liked = await db.getFavorites('tracks');
+            libTracks.push(...(liked || []));
+        } catch { /* ignore */ }
+        openAIPlaylistModal(libTracks, (playlist) => {
+            if (playlist) {
+                import('./downloads.js').then(({ showNotification }) => {
+                    showNotification(`✅ Playlist "${playlist.name}" created!`);
+                });
+                ui.renderLibraryPage();
+            }
+        });
+    });
+
     // Restore UI state for the current track (like button, theme)
     if (player.currentTrack) {
         ui.setCurrentTrack(player.currentTrack);

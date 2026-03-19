@@ -21,6 +21,7 @@ import { db } from './db.js';
 import { syncManager } from './accounts/pocketbase.js';
 import { waveformGenerator } from './waveform.js';
 import { audioContextManager } from './audio-context.js';
+import { listeningStats } from './listening-stats.js';
 import {
     trackPlayTrack,
     trackPauseTrack,
@@ -88,11 +89,20 @@ export function initializePlayerEvents(player, audioPlayer, scrobbler, ui) {
 
     // History tracking
     let historyLoggedTrackId = null;
+    let _statsTrackId = null;
+    let _statsSessionStart = 0;
 
     const setupMediaListeners = (element) => {
         element.addEventListener('loadstart', () => {
             if (player.activeElement === element) {
                 historyLoggedTrackId = null;
+                // Record stats for the previous session before track changes
+                if (_statsTrackId && _statsSessionStart > 0) {
+                    const listenMs = Date.now() - _statsSessionStart;
+                    listeningStats.recordPlay({ id: _statsTrackId, ...(player.currentTrack?.id === _statsTrackId ? player.currentTrack : {}) }, listenMs);
+                }
+                _statsTrackId = null;
+                _statsSessionStart = 0;
             }
         });
 
@@ -141,6 +151,14 @@ export function initializePlayerEvents(player, audioPlayer, scrobbler, ui) {
 
         element.addEventListener('ended', () => {
             if (player.activeElement !== element) return;
+            // Record complete listen session
+            if (_statsTrackId && _statsSessionStart > 0) {
+                const listenMs = Date.now() - _statsSessionStart;
+                const track = player.currentTrack?.id === _statsTrackId ? player.currentTrack : { id: _statsTrackId };
+                listeningStats.recordPlay(track, listenMs);
+                _statsTrackId = null;
+                _statsSessionStart = 0;
+            }
             player.playNextWithCrossfade();
         });
 
@@ -159,6 +177,14 @@ export function initializePlayerEvents(player, audioPlayer, scrobbler, ui) {
                     historyLoggedTrackId = player.currentTrack.id;
                     const historyEntry = await db.addToHistory(player.currentTrack);
                     syncManager.syncHistoryItem(historyEntry);
+
+                    // Start listening stats session
+                    if (_statsTrackId !== player.currentTrack.id) {
+                        _statsTrackId = player.currentTrack.id;
+                        _statsSessionStart = Date.now() - currentTime * 1000;
+                        // Record the initial play event (10s in)
+                        listeningStats.recordPlay(player.currentTrack, 10_000);
+                    }
 
                     if (window.location.hash === '#recent') {
                         ui.renderRecentPage();

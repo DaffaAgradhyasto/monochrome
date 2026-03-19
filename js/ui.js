@@ -1,5 +1,6 @@
 //js/ui.js
 import { showNotification } from './downloads.js';
+import { renderWrappedPage as _renderWrappedPage } from './wrapped.js';
 import {
     SVG_PLAY,
     SVG_DOWNLOAD,
@@ -4841,6 +4842,13 @@ export class UIRenderer {
         this.showPage('unreleased');
         const container = document.getElementById('unreleased-content');
         await renderUnreleasedTrackerPage(container);
+    }
+
+    renderWrappedPage(mode) {
+        this.showPage('wrapped');
+        const container = document.getElementById('wrapped-container');
+        const resolvedMode = mode === 'month' ? 'month' : 'year';
+        _renderWrappedPage(container, resolvedMode);
     }
 
     async renderTrackerArtistPage(sheetId) {

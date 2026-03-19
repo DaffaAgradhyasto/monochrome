@@ -2087,6 +2087,15 @@
                                     <span data-i18n="nav.settings">Settings</span>
                                 </a>
                             </li>
+                            <li class="nav-item" id="sidebar-nav-wrapped">
+                                <a href="/wrapped">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect width="20" height="14" x="2" y="5" rx="2"/>
+                                        <line x1="2" x2="22" y1="10" y2="10"/>
+                                    </svg>
+                                    <span>Wrapped</span>
+                                </a>
+                            </li>
                         </ul>
                     </nav>
                     <div class="sidebar-bottom-container">
@@ -2325,6 +2334,15 @@
                     <div class="home-header-tabs">
                         <button class="home-tab active" data-tab="for-you" data-i18n="nav.home">Home</button>
                         <button class="home-tab" data-tab="explore" data-i18n="home.hotNew">Hot & New</button>
+                    </div>
+
+                    <!-- Mood selector -->
+                    <div id="mood-selector-bar" style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;padding:.5rem 0 .25rem;margin-bottom:.25rem">
+                        <span style="font-size:.8rem;color:var(--muted-foreground);white-space:nowrap">Mood:</span>
+                        <div id="mood-chips" style="display:flex;gap:.35rem;flex-wrap:wrap"></div>
+                        <button id="ai-playlist-btn" class="btn-secondary" style="font-size:.8rem;padding:.25rem .6rem;margin-left:auto;white-space:nowrap">
+                            🤖 AI Playlist
+                        </button>
                     </div>
 
                     <div id="home-view-for-you" class="home-view active">
@@ -4914,6 +4932,66 @@
                                     </label>
                                 </div>
 
+                                <!-- Spatial Audio -->
+                                <div class="setting-item">
+                                    <div class="info">
+                                        <span class="label">Spatial Audio</span>
+                                        <span class="description">3D stereo widener for immersive sound</span>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="spatial-audio-toggle" />
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                <div class="setting-item" id="spatial-width-row" style="display:none">
+                                    <div class="info">
+                                        <span class="label">Stereo Width</span>
+                                        <span class="description">0 = mono · 1 = normal · 2 = very wide</span>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:.5rem">
+                                        <input type="range" id="spatial-width-slider" min="0" max="2" step="0.05" value="1.5" style="width:120px" />
+                                        <span id="spatial-width-label" style="min-width:2rem;text-align:right;font-size:.85rem">1.5</span>
+                                    </div>
+                                </div>
+
+                                <!-- Frequency Tuning -->
+                                <div class="setting-item">
+                                    <div class="info">
+                                        <span class="label">Frequency Tuning</span>
+                                        <span class="description">Tune audio to alternate base frequencies</span>
+                                    </div>
+                                    <select id="frequency-tuning-select">
+                                        <option value="standard">440 Hz (Standard)</option>
+                                        <option value="432hz">432 Hz</option>
+                                        <option value="528hz">528 Hz (Solfeggio)</option>
+                                        <option value="444hz">444 Hz</option>
+                                    </select>
+                                </div>
+
+                                <!-- Smart Shuffle -->
+                                <div class="setting-item">
+                                    <div class="info">
+                                        <span class="label">Smart Shuffle</span>
+                                        <span class="description">AI-weighted shuffle avoids recently-played tracks</span>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="smart-shuffle-toggle" />
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+
+                                <!-- AI DJ -->
+                                <div class="setting-item">
+                                    <div class="info">
+                                        <span class="label">AI DJ</span>
+                                        <span class="description">Virtual DJ introduces each track with a toast message</span>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="ai-dj-toggle" />
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+
                                 <div class="setting-item">
                                     <div class="info">
                                         <span class="label" data-i18n="settings.audio.playbackSpeed">Playback Speed</span>
@@ -5846,6 +5924,11 @@
                         ><span data-i18n="page.about.donate">Donate to Monochrome</span>
                         </a>
                     </div>
+                </div>
+
+                <!-- Wrapped / Year-in-Review Page -->
+                <div id="page-wrapped" class="page">
+                    <div id="wrapped-container"></div>
                 </div>
             </main>
 

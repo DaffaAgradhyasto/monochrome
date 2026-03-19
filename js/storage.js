@@ -1544,6 +1544,49 @@ export const audioEffectsSettings = {
     },
 };
 
+export const spatialAudioSettings = {
+    ENABLED_KEY: 'spatial-audio-enabled',
+    WIDTH_KEY: 'spatial-audio-width',
+
+    isEnabled() {
+        try { return localStorage.getItem(this.ENABLED_KEY) === 'true'; } catch { return false; }
+    },
+    setEnabled(v) {
+        try { localStorage.setItem(this.ENABLED_KEY, v ? 'true' : 'false'); } catch { /* ignore */ }
+    },
+    getWidth() {
+        try {
+            const v = parseFloat(localStorage.getItem(this.WIDTH_KEY));
+            return isNaN(v) ? 1.5 : Math.max(0, Math.min(2, v));
+        } catch { return 1.5; }
+    },
+    setWidth(v) {
+        try { localStorage.setItem(this.WIDTH_KEY, String(Math.max(0, Math.min(2, v)))); } catch { /* ignore */ }
+    },
+};
+
+export const frequencyTuningSettings = {
+    TUNING_KEY: 'frequency-tuning-cents',
+
+    // 440 Hz standard = 0, 432 Hz ≈ -32, 528 Hz ≈ +314
+    getTuning() {
+        try {
+            const v = parseFloat(localStorage.getItem(this.TUNING_KEY));
+            return isNaN(v) ? 0 : v;
+        } catch { return 0; }
+    },
+    setTuning(cents) {
+        try { localStorage.setItem(this.TUNING_KEY, String(cents)); } catch { /* ignore */ }
+    },
+    // Named presets
+    PRESETS: {
+        standard: { label: '440 Hz (Standard)', cents: 0 },
+        '432hz':  { label: '432 Hz', cents: -31.77 },
+        '528hz':  { label: '528 Hz (Solfeggio)', cents: 314.47 },
+        '444hz':  { label: '444 Hz', cents: 15.67 },
+    },
+};
+
 export const settingsUiState = {
     ACTIVE_TAB_KEY: 'settings-active-tab',
 

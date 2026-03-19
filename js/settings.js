@@ -36,6 +36,8 @@ import {
     crossfadeSettings,
     analyticsSettings,
     modalSettings,
+    spatialAudioSettings,
+    frequencyTuningSettings,
 } from './storage.js';
 import { switchLanguage, getCurrentLanguage, applyTranslations } from './i18n.js';
 import { audioContextManager, EQ_PRESETS } from './audio-context.js';
@@ -1047,6 +1049,80 @@ export function initializeSettings(scrobbler, player, api, ui) {
             exponentialVolumeSettings.setEnabled(e.target.checked);
             // Re-apply current volume to use new curve
             player.applyReplayGain();
+        });
+    }
+
+    // ========================================
+    // Spatial Audio
+    // ========================================
+    const spatialAudioToggle = document.getElementById('spatial-audio-toggle');
+    const spatialWidthRow = document.getElementById('spatial-width-row');
+    const spatialWidthSlider = document.getElementById('spatial-width-slider');
+    const spatialWidthLabel = document.getElementById('spatial-width-label');
+
+    if (spatialAudioToggle) {
+        spatialAudioToggle.checked = spatialAudioSettings.isEnabled();
+        if (spatialWidthRow) spatialWidthRow.style.display = spatialAudioSettings.isEnabled() ? '' : 'none';
+
+        spatialAudioToggle.addEventListener('change', (e) => {
+            const enabled = e.target.checked;
+            if (spatialWidthRow) spatialWidthRow.style.display = enabled ? '' : 'none';
+            audioContextManager.toggleSpatialAudio(enabled, spatialAudioSettings.getWidth());
+        });
+    }
+
+    if (spatialWidthSlider && spatialWidthLabel) {
+        const savedWidth = spatialAudioSettings.getWidth();
+        spatialWidthSlider.value = savedWidth;
+        spatialWidthLabel.textContent = savedWidth.toFixed(2);
+
+        spatialWidthSlider.addEventListener('input', (e) => {
+            const w = parseFloat(e.target.value);
+            spatialWidthLabel.textContent = w.toFixed(2);
+            audioContextManager.setSpatialWidth(w);
+        });
+    }
+
+    // ========================================
+    // Frequency Tuning
+    // ========================================
+    const frequencyTuningSelect = document.getElementById('frequency-tuning-select');
+    if (frequencyTuningSelect) {
+        const savedCents = frequencyTuningSettings.getTuning();
+        // Find closest preset
+        let activePreset = 'standard';
+        for (const [key, preset] of Object.entries(frequencyTuningSettings.PRESETS)) {
+            if (Math.abs(preset.cents - savedCents) < 1) { activePreset = key; break; }
+        }
+        frequencyTuningSelect.value = activePreset;
+
+        frequencyTuningSelect.addEventListener('change', (e) => {
+            const preset = frequencyTuningSettings.PRESETS[e.target.value];
+            if (preset) audioContextManager.setFrequencyTuning(preset.cents);
+        });
+    }
+
+    // ========================================
+    // Smart Shuffle
+    // ========================================
+    const smartShuffleToggle = document.getElementById('smart-shuffle-toggle');
+    if (smartShuffleToggle) {
+        smartShuffleToggle.checked = player.smartShuffleEnabled || false;
+        smartShuffleToggle.addEventListener('change', (e) => {
+            player.setSmartShuffle(e.target.checked);
+        });
+    }
+
+    // ========================================
+    // AI DJ
+    // ========================================
+    const aiDJToggle = document.getElementById('ai-dj-toggle');
+    if (aiDJToggle) {
+        import('./ai-dj.js').then(({ aiDJ }) => {
+            aiDJToggle.checked = aiDJ.isEnabled();
+            aiDJToggle.addEventListener('change', (e) => {
+                aiDJ.setEnabled(e.target.checked);
+            });
         });
     }
 

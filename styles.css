@@ -8562,3 +8562,63 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
     align-items: center;
     gap: 0.5rem;
 }
+
+/* ===== AI DJ Toast ===== */
+.ai-dj-toast {
+    position: fixed;
+    bottom: calc(var(--player-height, 90px) + 16px);
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--card);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.6rem 1.1rem;
+    font-size: 0.88rem;
+    max-width: min(90vw, 480px);
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,.25);
+    z-index: 9999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ai-dj-toast.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* ===== Mood Chips ===== */
+.mood-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.65rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+}
+.mood-chip:hover {
+    background: var(--accent);
+    color: var(--accent-foreground);
+}
+.mood-chip.active {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border-color: var(--primary);
+}
+
+/* ===== Wrapped Page ===== */
+#page-wrapped {
+    overflow-y: auto;
+}
+.wrapped-page {
+    padding-bottom: 2rem;
+}
