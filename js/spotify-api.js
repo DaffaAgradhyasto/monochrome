@@ -19,7 +19,6 @@ export class SpotifyAPI {
     if (this.accessToken && Date.now() < this.tokenExpiry) {
       return this.accessToken;
     }
-
     const response = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
       headers: {
@@ -28,7 +27,6 @@ export class SpotifyAPI {
       },
       body: 'grant_type=client_credentials',
     });
-
     const data = await response.json();
     this.accessToken = data.access_token;
     this.tokenExpiry = Date.now() + (data.expires_in * 1000);
@@ -44,11 +42,9 @@ export class SpotifyAPI {
         'Authorization': `Bearer ${token}`,
       },
     });
-
     if (!response.ok) {
-      throw new Error(`Spotify API error: ${response.statusText}`);
+      throw new Error(`Spotify API error: ${response.status} ${response.statusText}`);
     }
-
     return response.json();
   }
 
@@ -76,15 +72,43 @@ export class SpotifyAPI {
   }
 
   async searchTracks(query, limit = 20) {
+    const cacheKey = `search_${query}_${limit}`;
+    const cached = await this.cache.get('search', cacheKey);
+    if (cached) return cached;
     const data = await this.fetchSpotify(`/search?q=${encodeURIComponent(query)}&type=track&limit=${limit}`);
-    return {
+    const result = {
       items: data.tracks.items.map(t => this.prepareTrack(t)),
       total: data.tracks.total,
     };
+    await this.cache.set('search', cacheKey, result);
+    return result;
   }
 
-  async getRecommendations(trackIds, limit = 20) {
-    const data = await this.fetchSpotify(`/recommendations?seed_tracks=${trackIds.join(',')}&limit=${limit}`);
+  // Resolve Tidal track metadata to Spotify track IDs by searching Spotify
+  async resolveSpotifyIds(tidalTracks) {
+    const spotifyIds = [];
+    for (const track of tidalTracks.slice(0, 5)) {
+      try {
+        const title = track.title || track.name || '';
+        const artist = track.artist?.name || (track.artists?.[0]?.name) || '';
+        if (!title && !artist) continue;
+        const query = `${title} ${artist}`.trim();
+        const result = await this.searchTracks(query, 1);
+        if (result.items && result.items.length > 0) {
+          spotifyIds.push(result.items[0].id);
+        }
+      } catch (e) {
+        console.warn('Failed to resolve Spotify ID for track:', e);
+      }
+    }
+    return spotifyIds;
+  }
+
+  async getRecommendations(spotifyTrackIds, limit = 20) {
+    if (!spotifyTrackIds || spotifyTrackIds.length === 0) return [];
+    // Spotify allows max 5 seed tracks
+    const seeds = spotifyTrackIds.slice(0, 5);
+    const data = await this.fetchSpotify(`/recommendations?seed_tracks=${seeds.join(',')}&limit=${limit}&market=ID`);
     return data.tracks.map(t => this.prepareTrack(t));
   }
 
@@ -94,25 +118,70 @@ export class SpotifyAPI {
   }
 
   async getUserPlaylists() {
-    // Note: Needs user auth for private playlists, using public for now
     const data = await this.fetchSpotify('/browse/featured-playlists?country=ID');
     return data.playlists.items;
   }
 
-  // Algorithm-based "Spotify Original" features
-  async getPersonalizedMixes() {
-    const history = await db.getHistory();
-    const topTracks = history.slice(0, 5).map(t => t.id);
-    
-    if (topTracks.length === 0) {
-      return this.getTrending();
+  async getTrending(limit = 20) {
+    // Use new-releases and then get tracks from those albums via search
+    // Since client credentials can't access user-specific endpoints,
+    // we fall back to fetching top tracks of a trending playlist
+    const cacheKey = `trending_${limit}`;
+    const cached = await this.cache.get('trending', cacheKey);
+    if (cached) return cached;
+    try {
+      const data = await this.fetchSpotify('/browse/featured-playlists?country=ID&limit=1');
+      const playlist = data.playlists?.items?.[0];
+      if (playlist) {
+        const tracksData = await this.fetchSpotify(`/playlists/${playlist.id}/tracks?limit=${limit}&market=ID`);
+        const tracks = (tracksData.items || [])
+          .filter(i => i.track && i.track.id)
+          .map(i => this.prepareTrack(i.track));
+        await this.cache.set('trending', cacheKey, tracks);
+        return tracks;
+      }
+    } catch (e) {
+      console.warn('Failed to get trending from featured playlists:', e);
     }
-
-    return this.getRecommendations(topTracks);
+    // Final fallback: search for popular tracks
+    const result = await this.searchTracks('year:2024-2025', limit);
+    return result.items || [];
   }
 
-  async getTrending() {
-    const data = await this.fetchSpotify('/browse/new-releases?limit=10');
-    return data.albums.items;
+  // Algorithm-based personalized features
+  // Uses history from db to find matching Spotify tracks and generate recommendations
+  async getPersonalizedMixes() {
+    const cacheKey = 'personalized_mixes';
+    const cached = await this.cache.get('mixes', cacheKey);
+    if (cached) return cached;
+
+    let result = [];
+    try {
+      const history = await db.getHistory();
+      const recentTracks = history.slice(0, 10);
+
+      if (recentTracks.length === 0) {
+        // No history: return trending tracks
+        result = await this.getTrending(20);
+      } else {
+        // Resolve Tidal track IDs -> Spotify IDs via title+artist search
+        const spotifyIds = await this.resolveSpotifyIds(recentTracks);
+
+        if (spotifyIds.length > 0) {
+          result = await this.getRecommendations(spotifyIds, 20);
+        } else {
+          // Could not resolve any Spotify IDs, fall back to trending
+          result = await this.getTrending(20);
+        }
+      }
+    } catch (e) {
+      console.warn('Spotify getPersonalizedMixes error:', e);
+      result = [];
+    }
+
+    if (result.length > 0) {
+      await this.cache.set('mixes', cacheKey, result);
+    }
+    return result;
   }
 }
