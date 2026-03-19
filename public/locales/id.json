@@ -139,5 +139,12 @@
   "common.disconnect": "Putuskan",
   "common.connect": "Hubungkan",
   "common.openThemeStore": "Buka Toko Tema",
-  "common.unapplyTheme": "Hapus Tema"
+  "common.unapplyTheme": "Hapus Tema",
+  "common.searching": "Mencari...",
+  "modal.devicePicker.title": "Hubungkan ke perangkat",
+  "modal.devicePicker.wifiDevices": "Perangkat WiFi",
+  "modal.devicePicker.googleCastAirplay": "Google Cast / AirPlay",
+  "modal.devicePicker.availableDevices": "Perangkat yang Tersedia",
+  "modal.devicePicker.footer": "Perangkat Bluetooth harus dihubungkan melalui pengaturan sistem Anda terlebih dahulu.",
+  "player.cast": "Cast"
 }

@@ -1134,6 +1134,41 @@
             </div>
         </div>
 
+        <div id="device-picker-modal" class="modal">
+            <div class="modal-overlay"></div>
+            <div class="modal-content device-picker-content">
+                <div class="device-picker-header">
+                    <h3 data-i18n="modal.devicePicker.title">Connect to a device</h3>
+                    <button id="device-picker-close" class="modal-close">&times;</button>
+                </div>
+                <div class="device-picker-body">
+                    <div class="device-section native-cast-section">
+                        <button id="device-picker-cast-btn" class="device-item cast-btn">
+                            <div class="device-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path><path d="M2 12a9 9 0 0 1 9 9"></path><path d="M2 17a5 5 0 0 1 5 5"></path><path d="M2 22h.01"></path></svg>
+                            </div>
+                            <div class="device-info">
+                                <span class="device-name" data-i18n="modal.devicePicker.wifiDevices">WiFi Devices</span>
+                                <span class="device-status" data-i18n="modal.devicePicker.googleCastAirplay">Google Cast / AirPlay</span>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="device-separator">
+                        <span data-i18n="modal.devicePicker.availableDevices">Available Devices</span>
+                    </div>
+                    <div id="device-list" class="device-list">
+                        <!-- Devices will be injected here -->
+                        <div class="device-item loading">
+                            <span data-i18n="common.searching">Searching...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="device-picker-footer">
+                    <p data-i18n="modal.devicePicker.footer">Bluetooth devices must be connected in your system settings first.</p>
+                </div>
+            </div>
+        </div>
+
         <div id="email-auth-modal" class="modal">
             <div class="modal-overlay"></div>
             <div class="modal-content">

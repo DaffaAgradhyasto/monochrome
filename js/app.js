@@ -125,73 +125,135 @@ async function loadMetadataModule() {
 function initializeCasting(audioPlayer, castBtn) {
     if (!castBtn) return;
 
-    if ('remote' in audioPlayer) {
-        audioPlayer.remote
-            .watchAvailability((available) => {
-                if (available) {
-                    castBtn.style.display = 'flex';
-                    castBtn.classList.add('available');
-                }
-            })
-            .catch((err) => {
-                console.log('Remote playback not available:', err);
-                if (window.innerWidth > 768) {
-                    castBtn.style.display = 'flex';
-                }
-            });
+    const modal = document.getElementById('device-picker-modal');
+    if (!modal) return;
+    
+    const closeBtn = document.getElementById('device-picker-close');
+    const nativeCastBtn = document.getElementById('device-picker-cast-btn');
+    const deviceList = document.getElementById('device-list');
 
-        castBtn.addEventListener('click', () => {
+    const showModal = async () => {
+        modal.classList.add('active');
+        await updateDeviceList();
+    };
+
+    const hideModal = () => {
+        modal.classList.remove('active');
+    };
+
+    castBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showModal();
+    });
+
+    if (closeBtn) closeBtn.addEventListener('click', hideModal);
+    const overlay = modal.querySelector('.modal-overlay');
+    if (overlay) overlay.addEventListener('click', hideModal);
+
+    if (nativeCastBtn) {
+        nativeCastBtn.addEventListener('click', () => {
+            hideModal();
             if (!audioPlayer.src) {
                 alert('Please play a track first to enable casting.');
                 return;
             }
-            audioPlayer.remote.prompt().catch((err) => {
-                if (err.name === 'NotAllowedError') return;
-                if (err.name === 'NotFoundError') {
-                    alert('No remote playback devices (Chromecast/AirPlay) were found on your network.');
-                    return;
-                }
-                console.log('Cast prompt error:', err);
-            });
-        });
 
-        audioPlayer.addEventListener('playing', () => {
-            if (audioPlayer.remote && audioPlayer.remote.state === 'connected') {
-                castBtn.classList.add('connected');
-            }
-        });
-
-        audioPlayer.addEventListener('pause', () => {
-            if (audioPlayer.remote && audioPlayer.remote.state === 'disconnected') {
-                castBtn.classList.remove('connected');
-            }
-        });
-    } else if (audioPlayer.webkitShowPlaybackTargetPicker) {
-        castBtn.style.display = 'flex';
-        castBtn.classList.add('available');
-
-        castBtn.addEventListener('click', () => {
-            audioPlayer.webkitShowPlaybackTargetPicker();
-        });
-
-        audioPlayer.addEventListener('webkitplaybacktargetavailabilitychanged', (e) => {
-            if (e.availability === 'available') {
-                castBtn.classList.add('available');
-            }
-        });
-
-        audioPlayer.addEventListener('webkitcurrentplaybacktargetiswirelesschanged', () => {
-            if (audioPlayer.webkitCurrentPlaybackTargetIsWireless) {
-                castBtn.classList.add('connected');
+            if ('remote' in audioPlayer) {
+                audioPlayer.remote.prompt().catch((err) => {
+                    if (err.name === 'NotAllowedError') return;
+                    if (err.name === 'NotFoundError') {
+                        alert('No remote playback devices (Chromecast/AirPlay) were found on your network.');
+                        return;
+                    }
+                    console.log('Cast prompt error:', err);
+                });
+            } else if (audioPlayer.webkitShowPlaybackTargetPicker) {
+                audioPlayer.webkitShowPlaybackTargetPicker();
             } else {
-                castBtn.classList.remove('connected');
+                alert('Casting not supported in this browser.');
             }
         });
-    } else if (window.innerWidth > 768) {
-        castBtn.style.display = 'flex';
-        castBtn.addEventListener('click', () => {
-            alert('Casting is not supported in this browser. Try Chrome for Chromecast or Safari for AirPlay.');
-        });
+    }
+
+    async function updateDeviceList() {
+        if (!deviceList) return;
+        
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+            deviceList.innerHTML = '<div class="device-item disabled">Device listing not supported in this browser.</div>';
+            return;
+        }
+
+        try {
+            // Some browsers require explicit user permission to see labels or specific devices
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const audioOutputs = devices.filter(device => device.kind === 'audiooutput');
+
+            if (audioOutputs.length === 0) {
+                deviceList.innerHTML = '<div class="device-item disabled">No audio output devices found.</div>';
+                return;
+            }
+
+            const currentSinkId = audioPlayer.sinkId || '';
+
+            deviceList.innerHTML = audioOutputs.map(device => {
+                const isDefault = device.deviceId === 'default';
+                const isActive = device.deviceId === currentSinkId || (isDefault && !currentSinkId);
+                const label = device.label || (isDefault ? 'Default Output' : `Output ${device.deviceId.slice(0, 8)}...`);
+                
+                let icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6c3.314 0 6 2.686 6 6s-2.686 6-6 6-6-2.686-6-6 2.686-6 6-6Z"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="m4.9 4.9 2.9 2.9"/><path d="m16.2 16.2 2.9 2.9"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="m4.9 19.1 2.9-2.9"/><path d="m16.2 7.8 2.9-2.9"/></svg>';
+                const lowerLabel = label.toLowerCase();
+                if (lowerLabel.includes('headphone') || lowerLabel.includes('earphone')) {
+                     icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg>';
+                } else if (lowerLabel.includes('bluetooth') || lowerLabel.includes('wireless')) {
+                     icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 7 10 10-5 5V2l5 5L7 17"/></svg>';
+                } else if (lowerLabel.includes('speaker')) {
+                     icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><circle cx="12" cy="14" r="3"/><line x1="12" y1="6" x2="12" y2="6"/></svg>';
+                }
+
+                return `
+                    <button class="device-item ${isActive ? 'active' : ''}" data-device-id="${device.deviceId}">
+                        <div class="device-icon">${icon}</div>
+                        <div class="device-info">
+                            <span class="device-name">${label}</span>
+                            <span class="device-status">${isActive ? 'Active' : 'Connected'}</span>
+                        </div>
+                    </button>
+                `;
+            }).join('');
+
+            deviceList.querySelectorAll('.device-item').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const deviceId = btn.dataset.deviceId;
+                    if (audioPlayer.setSinkId) {
+                        try {
+                            await audioPlayer.setSinkId(deviceId);
+                            hideModal();
+                        } catch (err) {
+                            console.error('Failed to set audio output:', err);
+                            alert('Could not switch to this device. Please ensure you have granted permission for the site to access audio devices if prompted.');
+                        }
+                    } else {
+                        alert('Your browser does not support changing audio output devices (try Chrome or Edge).');
+                    }
+                });
+            });
+
+        } catch (err) {
+            console.error('Error listing devices:', err);
+            deviceList.innerHTML = '<div class="device-item error">Failed to load devices.</div>';
+        }
+    }
+
+    // Connect to Remote Playback API if available
+    if ('remote' in audioPlayer) {
+        audioPlayer.remote.watchAvailability((available) => {
+            if (available) {
+                castBtn.classList.add('available');
+                if (nativeCastBtn) nativeCastBtn.style.display = 'flex';
+            }
+        }).catch(() => {});
+    } else if (audioPlayer.webkitShowPlaybackTargetPicker) {
+        castBtn.classList.add('available');
     }
 }
 
