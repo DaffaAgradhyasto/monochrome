@@ -1474,7 +1474,7 @@ export class Player {
         
         let url = streamUrl || track.audioUrl || track.remoteUrl;
         if (!url || url.startsWith('blob:') || track.isLocal) {
-            console.warn("Cannot cast local files or blob URLs");
+            const isQobuz = String(track.id).startsWith('q:'); try { url = track.type === 'video' ? await this.api.getVideoStreamUrl(track.id) : await this.api.getStreamUrl(track.id, this.quality); if (url && url.startsWith('blob:')) url = null; } catch(e) { console.warn('Failed to fetch castable URL:', e); } } if (!url) { console.warn('No castable URL for this track');
             return false;
         }
 
