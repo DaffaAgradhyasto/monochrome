@@ -6025,8 +6025,8 @@ img[src=''] {
 }
 
 .device-item:hover {
-    background: color-mix(in srgb, var(--secondary) 72%, var(--foreground) 8%);
-    border-color: color-mix(in srgb, var(--border) 80%, var(--foreground) 18%);
+    background: color-mix(in srgb, var(--secondary) 90%, var(--foreground) 10%);
+    border-color: color-mix(in srgb, var(--border) 82%, var(--foreground) 18%);
 }
 
 .device-item.active {
