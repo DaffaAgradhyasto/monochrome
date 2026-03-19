@@ -5966,6 +5966,13 @@ img[src=''] {
     gap: 0.5rem;
 }
 
+.device-section.native-cast-section {
+    padding: 0.35rem;
+    border: 1px solid color-mix(in srgb, var(--highlight) 30%, var(--border) 70%);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--highlight) 8%, var(--secondary) 92%);
+}
+
 .device-separator {
     display: flex;
     align-items: center;
@@ -6025,6 +6032,25 @@ img[src=''] {
 .device-item.active {
     border-color: var(--highlight);
     background: color-mix(in srgb, var(--highlight) 20%, var(--secondary) 80%);
+}
+
+.device-item.cast-btn {
+    border-color: color-mix(in srgb, var(--highlight) 65%, var(--border) 35%);
+    background: color-mix(in srgb, var(--highlight) 18%, var(--secondary) 82%);
+}
+
+.device-item.cast-btn:hover {
+    background: color-mix(in srgb, var(--highlight) 28%, var(--secondary) 72%);
+    border-color: var(--highlight);
+}
+
+.device-item.cast-btn .device-icon {
+    color: var(--highlight);
+}
+
+.device-item.cast-btn .device-status {
+    color: color-mix(in srgb, var(--highlight) 78%, var(--foreground) 22%);
+    font-weight: 600;
 }
 
 .device-item.loading,
