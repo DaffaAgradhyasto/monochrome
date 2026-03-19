@@ -228,7 +228,12 @@ function initializeCasting(audioPlayer, castBtn) {
                 } else if (lowerLabel.includes('speaker')) {
                      icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><circle cx="12" cy="14" r="3"/><line x1="12" y1="6" x2="12" y2="6"/></svg>';
                 }
-                const statusText = isActive ? 'Active' : (isBluetooth ? 'Bluetooth' : 'Output');
+                let statusText = 'Output';
+                if (isActive) {
+                    statusText = 'Active';
+                } else if (isBluetooth) {
+                    statusText = 'Bluetooth';
+                }
 
                 return `
                     <button class="device-item ${isActive ? 'active' : ''}" data-device-id="${device.deviceId}">
