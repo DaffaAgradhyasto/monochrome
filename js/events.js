@@ -146,10 +146,11 @@ export function initializePlayerEvents(player, audioPlayer, scrobbler, ui) {
         });
 
         element.addEventListener('timeupdate', async () => {
-            if (player.activeElement !== element) return;
+            if (player.activeElement !== element && !player.isCasting) return;
 
-            const { currentTime, duration } = element;
-            if (duration) {
+            const duration = player.duration;
+            const currentTime = player.currentTime;
+            if (duration && duration !== Infinity) {
                 const progressFill = document.getElementById('progress-fill');
                 const currentTimeEl = document.getElementById('current-time');
                 progressFill.style.width = `${(currentTime / duration) * 100}%`;
@@ -171,9 +172,12 @@ export function initializePlayerEvents(player, audioPlayer, scrobbler, ui) {
         });
 
         element.addEventListener('loadedmetadata', () => {
-            if (player.activeElement !== element) return;
+            if (player.activeElement !== element && !player.isCasting) return;
             const totalDurationEl = document.getElementById('total-duration');
-            totalDurationEl.textContent = formatTime(element.duration);
+            const duration = player.duration;
+            if (duration && duration !== Infinity) {
+                totalDurationEl.textContent = formatTime(duration);
+            }
             player.updateMediaSessionPositionState();
         });
 
@@ -513,21 +517,20 @@ function initializeSmoothSliders(player) {
     };
 
     const updateSeekUI = (position) => {
-        const activeEl = player.activeElement;
-        if (!isNaN(activeEl.duration)) {
+        const duration = player.duration;
+        if (!isNaN(duration) && duration !== Infinity) {
             progressFill.style.width = `${position * 100}%`;
             if (currentTimeEl) {
-                currentTimeEl.textContent = formatTime(position * activeEl.duration);
+                currentTimeEl.textContent = formatTime(position * duration);
             }
         }
     };
 
     // Progress bar with smooth dragging
     progressBar.addEventListener('mousedown', (e) => {
-        const activeEl = player.activeElement;
         isSeeking = true;
-        wasPlaying = !activeEl.paused;
-        if (wasPlaying) activeEl.pause();
+        wasPlaying = !player.isPaused;
+        if (wasPlaying) player.pause();
 
         seek(progressBar, e, (position) => {
             lastSeekPosition = position;
@@ -537,11 +540,10 @@ function initializeSmoothSliders(player) {
 
     // Touch events for mobile
     progressBar.addEventListener('touchstart', (e) => {
-        const activeEl = player.activeElement;
         e.preventDefault();
         isSeeking = true;
-        wasPlaying = !activeEl.paused;
-        if (wasPlaying) activeEl.pause();
+        wasPlaying = !player.isPaused;
+        if (wasPlaying) player.pause();
 
         const touch = e.touches[0];
         const rect = progressBar.getBoundingClientRect();
@@ -606,12 +608,11 @@ function initializeSmoothSliders(player) {
 
     document.addEventListener('mouseup', () => {
         if (isSeeking) {
-            const activeEl = player.activeElement;
             // Commit the seek
-            if (!isNaN(activeEl.duration)) {
-                activeEl.currentTime = lastSeekPosition * activeEl.duration;
-                player.updateMediaSessionPositionState();
-                if (wasPlaying) activeEl.play();
+            const duration = player.duration;
+            if (!isNaN(duration) && duration !== Infinity) {
+                player.seekTo(lastSeekPosition * duration);
+                if (wasPlaying) player.play();
             }
             isSeeking = false;
         }
@@ -623,11 +624,10 @@ function initializeSmoothSliders(player) {
 
     document.addEventListener('touchend', () => {
         if (isSeeking) {
-            const activeEl = player.activeElement;
-            if (!isNaN(activeEl.duration)) {
-                activeEl.currentTime = lastSeekPosition * activeEl.duration;
-                player.updateMediaSessionPositionState();
-                if (wasPlaying) activeEl.play();
+            const duration = player.duration;
+            if (!isNaN(duration) && duration !== Infinity) {
+                player.seekTo(lastSeekPosition * duration);
+                if (wasPlaying) player.play();
             }
             isSeeking = false;
         }
@@ -639,12 +639,11 @@ function initializeSmoothSliders(player) {
 
     progressBar.addEventListener('click', (e) => {
         if (!isSeeking) {
-            const activeEl = player.activeElement;
             // Only handle click if not result of a drag release
             seek(progressBar, e, (position) => {
-                if (!isNaN(activeEl.duration) && activeEl.duration > 0 && activeEl.duration !== Infinity) {
-                    activeEl.currentTime = position * activeEl.duration;
-                    player.updateMediaSessionPositionState();
+                const duration = player.duration;
+                if (!isNaN(duration) && duration > 0 && duration !== Infinity) {
+                    player.seekTo(position * duration);
                 } else if (player.currentTrack && player.currentTrack.duration) {
                     const targetTime = position * player.currentTrack.duration;
                     const progressFill = document.querySelector('.progress-fill');

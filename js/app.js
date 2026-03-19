@@ -151,11 +151,29 @@ function initializeCasting(audioPlayer, castBtn) {
     if (overlay) overlay.addEventListener('click', hideModal);
 
     if (nativeCastBtn) {
-        nativeCastBtn.addEventListener('click', () => {
+        nativeCastBtn.addEventListener('click', async () => {
             hideModal();
             if (!audioPlayer.src) {
                 alert('Please play a track first to enable casting.');
                 return;
+            }
+
+            if (window.cast && cast.framework && cast.framework.CastContext) {
+                try {
+                    const ctx = cast.framework.CastContext.getInstance();
+                    const state = ctx.getCastState();
+                    if (state !== cast.framework.CastState.NO_DEVICES_AVAILABLE) {
+                        try {
+                            await ctx.requestSession();
+                            return;
+                        } catch (err) {
+                            console.log('User cancelled cast session or it failed:', err);
+                            return;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Google Cast request failed', e);
+                }
             }
 
             if ('remote' in audioPlayer) {
@@ -244,16 +262,29 @@ function initializeCasting(audioPlayer, castBtn) {
         }
     }
 
+    // Check Google Cast availability
+    const checkCast = setInterval(() => {
+        if (window.cast && cast.framework && cast.framework.CastContext) {
+            const state = cast.framework.CastContext.getInstance().getCastState();
+            if (state !== cast.framework.CastState.NO_DEVICES_AVAILABLE) {
+                if (castBtn) castBtn.classList.add('available');
+                if (nativeCastBtn) nativeCastBtn.style.display = 'flex';
+                clearInterval(checkCast);
+            }
+        }
+    }, 1000);
+    setTimeout(() => clearInterval(checkCast), 10000);
+
     // Connect to Remote Playback API if available
     if ('remote' in audioPlayer) {
         audioPlayer.remote.watchAvailability((available) => {
             if (available) {
-                castBtn.classList.add('available');
+                if (castBtn) castBtn.classList.add('available');
                 if (nativeCastBtn) nativeCastBtn.style.display = 'flex';
             }
         }).catch(() => {});
     } else if (audioPlayer.webkitShowPlaybackTargetPicker) {
-        castBtn.classList.add('available');
+        if (castBtn) castBtn.classList.add('available');
     }
 }
 
