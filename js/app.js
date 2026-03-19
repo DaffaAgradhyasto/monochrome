@@ -220,20 +220,22 @@ function initializeCasting(audioPlayer, castBtn) {
                 
                 let icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6c3.314 0 6 2.686 6 6s-2.686 6-6 6-6-2.686-6-6 2.686-6 6-6Z"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="m4.9 4.9 2.9 2.9"/><path d="m16.2 16.2 2.9 2.9"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="m4.9 19.1 2.9-2.9"/><path d="m16.2 7.8 2.9-2.9"/></svg>';
                 const lowerLabel = label.toLowerCase();
+                const isBluetooth = lowerLabel.includes('bluetooth') || lowerLabel.includes('wireless');
                 if (lowerLabel.includes('headphone') || lowerLabel.includes('earphone')) {
                      icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/></svg>';
-                } else if (lowerLabel.includes('bluetooth') || lowerLabel.includes('wireless')) {
+                } else if (isBluetooth) {
                      icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 7 10 10-5 5V2l5 5L7 17"/></svg>';
                 } else if (lowerLabel.includes('speaker')) {
                      icon = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><circle cx="12" cy="14" r="3"/><line x1="12" y1="6" x2="12" y2="6"/></svg>';
                 }
+                const statusText = isActive ? 'Active' : (isBluetooth ? 'Bluetooth' : 'Output');
 
                 return `
                     <button class="device-item ${isActive ? 'active' : ''}" data-device-id="${device.deviceId}">
                         <div class="device-icon">${icon}</div>
                         <div class="device-info">
                             <span class="device-name">${label}</span>
-                            <span class="device-status">${isActive ? 'Active' : 'Connected'}</span>
+                            <span class="device-status">${statusText}</span>
                         </div>
                     </button>
                 `;
