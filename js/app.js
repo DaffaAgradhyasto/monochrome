@@ -519,7 +519,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const currentQuality = localStorage.getItem('playback-quality') || 'HI_RES_LOSSLESS';
     const player = new Player(audioPlayer, api, currentQuality);
-    window.monochromePlayer = player;
+    window.monochromePlayer = player;     window.__api = api; // Debug: expose API instance
 
     // Initialize tracker
     initTracker(player);
