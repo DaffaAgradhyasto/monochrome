@@ -85,7 +85,6 @@ export class MusicAPI {
     async getArtistBiography(id, provider = null) {
         const p = provider || this.getProviderFromId(id) || this.getCurrentProvider();
         if (p !== 'tidal') return null; // Biography only supported for Tidal
-
         const api = this.getAPI(p);
         const cleanId = this.stripProviderPrefix(id);
         if (typeof api.getArtistBiography === 'function') {
@@ -122,6 +121,11 @@ export class MusicAPI {
     async getMix(id, _provider = null) {
         // Mixes are always Tidal for now
         return this.tidalAPI.getMix(id);
+    }
+
+    // Personalized mixes - proxy to tidalAPI which handles Spotify integration internally
+    async getPersonalizedMixes(forceRefresh = false) {
+        return this.tidalAPI.getPersonalizedMixes(forceRefresh);
     }
 
     async getTrackRecommendations(id) {
@@ -171,7 +175,6 @@ export class MusicAPI {
         if (this.videoArtworkCache.has(cacheKey)) {
             return this.videoArtworkCache.get(cacheKey);
         }
-
         try {
             const url = `https://artwork.boidu.dev/?s=${encodeURIComponent(title)}&a=${encodeURIComponent(artist)}`;
             const response = await fetch(url);
@@ -259,5 +262,18 @@ export class MusicAPI {
     // Settings accessor for compatibility
     get settings() {
         return this._settings;
+    }
+
+    // Debug helper: check if Spotify API is active
+    async getSpotifyStatus() {
+        try {
+            const token = await this.tidalAPI.spotify?.getAccessToken?.();
+            return {
+                connected: !!token,
+                tokenPreview: token ? token.slice(0, 10) + '...' : null,
+            };
+        } catch (e) {
+            return { connected: false, error: e.message };
+        }
     }
 }
