@@ -1127,7 +1127,6 @@ export class UIRenderer {
         overlay.style.display = 'flex';
 
         const startVisualizer = async () => {
-        const startVisualizer = () => {
             if (this.player?.isCasting) {
                 if (this.visualizer) this.visualizer.stop();
                 overlay.classList.remove('visualizer-active');
