@@ -1,6 +1,6 @@
 // js/accounts/settings-sync.js
-// Auto-syncs all monochrome settings to Appwrite cloud
-import { syncManager } from './appwrite-sync.js';
+// Auto-syncs all monochrome settings to PocketBase cloud
+import { syncManager } from './pocketbase.js';
 import { authManager } from './auth.js';
 
 let _syncTimer = null;
@@ -54,6 +54,6 @@ localStorage.setItem = function(key, value) {
     }
 };
 
-console.log('[SettingsSync] Appwrite cloud settings sync initialized');
+console.log('[SettingsSync] Cloud settings sync initialized');
 
 export { syncSettingsToCloud, collectAllSettings };
