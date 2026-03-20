@@ -4,6 +4,10 @@ import { sidePanelManager } from './side-panel.js';
 import '@uimaxbai/am-lyrics/am-lyrics.js';
 
 const SVG_GENIUS_ACTIVE = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 24c6.627 0 12-5.373 12-12S18.627 0 12 0 0 5.373 0 12s5.373 12 12 12z" fill="#ffff64"/><path d="M6.3 6.3h11.4v11.4H6.3z" fill="#000"/></svg>`;
+const LYRICS_ACTIVE_STATE_CLASSES = ['active', 'pre-active', 'active-line', 'lyrics-activest'];
+const LYRICS_ACTIVE_STATE_ATTRIBUTES = ['data-active', 'aria-current'];
+const LYRICS_OBSERVER_ATTRIBUTE_FILTER = ['class', ...LYRICS_ACTIVE_STATE_ATTRIBUTES];
+const TRANSLATION_LINE_SELECTOR = '.lyrics-translation-container, .monochrome-translated-line';
 
 // Check if text contains Japanese, Chinese, or Korean characters
 function containsAsianText(text) {
@@ -659,6 +663,7 @@ export class LyricsManager {
         this.syncTranslationHighlightState(observeRoot);
 
         this.romajiObserver = new MutationObserver((mutations) => {
+            let changedLines = null;
             // Check if any relevant mutation occurred
             const hasRelevantChange = mutations.some((mutation) => {
                 if (mutation.type === 'childList') {
@@ -684,9 +689,11 @@ export class LyricsManager {
                 if (mutation.type === 'characterData') return true;
                 if (
                     mutation.type === 'attributes' &&
-                    mutation.target?.nodeType === Node.ELEMENT_NODE &&
+                    mutation.target.nodeType === Node.ELEMENT_NODE &&
                     mutation.target.id?.startsWith('lyrics-line-')
                 ) {
+                    if (!changedLines) changedLines = new Set();
+                    changedLines.add(mutation.target);
                     return true;
                 }
                 return false;
@@ -710,7 +717,11 @@ export class LyricsManager {
                 if (this.isGeniusMode && this.currentGeniusData) {
                     this.applyGeniusAnnotations(amLyricsElement, this.currentGeniusData.referents);
                 }
-                this.syncTranslationHighlightState(observeRoot);
+                if (changedLines?.size > 0) {
+                    this.syncTranslationHighlightStateForLines(changedLines);
+                } else {
+                    this.syncTranslationHighlightState(observeRoot);
+                }
             }, 100);
         });
 
@@ -721,7 +732,7 @@ export class LyricsManager {
             subtree: true,
             characterData: true, // Watch text changes to catch lyric refreshes
             attributes: true,
-            attributeFilter: ['class', 'style', 'data-active', 'aria-current'],
+            attributeFilter: LYRICS_OBSERVER_ATTRIBUTE_FILTER,
         });
 
         // Initial conversion if Romaji mode is enabled - single attempt, no periodic polling
@@ -744,16 +755,12 @@ export class LyricsManager {
         const style = document.createElement('style');
         style.id = this.translationHighlightStyleId;
         style.textContent = `
-            [id^="lyrics-line-"].active .lyrics-translation-container,
-            [id^="lyrics-line-"].active .monochrome-translated-line,
-            [id^="lyrics-line-"].pre-active .lyrics-translation-container,
-            [id^="lyrics-line-"].pre-active .monochrome-translated-line,
-            [id^="lyrics-line-"][data-active="true"] .lyrics-translation-container,
-            [id^="lyrics-line-"][data-active="true"] .monochrome-translated-line,
-            [id^="lyrics-line-"][aria-current="true"] .lyrics-translation-container,
-            [id^="lyrics-line-"][aria-current="true"] .monochrome-translated-line,
-            [id^="lyrics-line-"].translation-active .lyrics-translation-container,
-            [id^="lyrics-line-"].translation-active .monochrome-translated-line {
+            [id^="lyrics-line-"]:is(
+                .active, .pre-active, .active-line, .lyrics-activest,
+                .translation-active,
+                [data-active="true"],
+                [aria-current="true"]
+            ) :is(${TRANSLATION_LINE_SELECTOR}) {
                 color: var(--am-lyrics-highlight-color, var(--highlight-color, #fff));
                 opacity: 1;
                 text-shadow: 0 0 12px rgb(var(--highlight-rgb, 255 255 255) / 0.3);
@@ -766,8 +773,7 @@ export class LyricsManager {
 
     isLyricsLineActive(lineElement) {
         if (!lineElement) return false;
-        if (lineElement.classList.contains('active') || lineElement.classList.contains('pre-active')) return true;
-        if (lineElement.classList.contains('active-line') || lineElement.classList.contains('lyrics-activest')) return true;
+        if (LYRICS_ACTIVE_STATE_CLASSES.some((className) => lineElement.classList.contains(className))) return true;
         if (lineElement.getAttribute('data-active') === 'true') return true;
         if (lineElement.getAttribute('aria-current') === 'true') return true;
         return false;
@@ -776,9 +782,22 @@ export class LyricsManager {
     syncTranslationHighlightState(root) {
         if (!root || !root.querySelectorAll) return;
         root.querySelectorAll('[id^="lyrics-line-"]').forEach((line) => {
-            const isActive = this.isLyricsLineActive(line);
-            line.classList.toggle('translation-active', isActive);
+            this.syncTranslationHighlightForLine(line);
         });
+    }
+
+    syncTranslationHighlightStateForLines(lines) {
+        if (!lines || lines.size === 0) return;
+        lines.forEach((line) => {
+            this.syncTranslationHighlightForLine(line);
+        });
+    }
+
+    syncTranslationHighlightForLine(line) {
+        if (!line) return;
+        if (!line.id?.startsWith('lyrics-line-')) return;
+        const isActive = this.isLyricsLineActive(line);
+        line.classList.toggle('translation-active', isActive);
     }
 
     // Convert lyrics content to Romaji

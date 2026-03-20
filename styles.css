@@ -5224,16 +5224,13 @@ input:checked + .slider::before {
     transition: color 0.3s ease, opacity 0.3s ease, text-shadow 0.3s ease;
 }
 
-.lyrics-line.active .lyrics-translation-container,
-.lyrics-line.active .monochrome-translated-line,
-.lyrics-line.pre-active .lyrics-translation-container,
-.lyrics-line.pre-active .monochrome-translated-line,
-[id^='lyrics-line-'].active .lyrics-translation-container,
-[id^='lyrics-line-'].active .monochrome-translated-line,
-[id^='lyrics-line-'].pre-active .lyrics-translation-container,
-[id^='lyrics-line-'].pre-active .monochrome-translated-line,
-[id^='lyrics-line-'].translation-active .lyrics-translation-container,
-[id^='lyrics-line-'].translation-active .monochrome-translated-line {
+:is(.lyrics-line, [id^='lyrics-line-']):is(
+        .active,
+        .pre-active,
+        .active-line,
+        .lyrics-activest,
+        .translation-active
+    ) :is(.lyrics-translation-container, .monochrome-translated-line) {
     color: var(--highlight-color, #fff);
     opacity: 1;
     text-shadow: 0 0 12px rgb(var(--highlight-rgb) / 0.3);
