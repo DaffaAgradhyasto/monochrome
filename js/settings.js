@@ -3215,6 +3215,9 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
     // Blocked Content Management
     initializeBlockedContentManager();
+
+    // Spotify Settings
+    initSpotifySettings();
 }
 
 function initializeFontSettings() {
@@ -3673,4 +3676,86 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+
+// Spotify Connect Settings UI
+export function initSpotifySettings() {
+    const connectBtn = document.getElementById('spotify-connect-btn');
+    const disconnectBtn = document.getElementById('spotify-disconnect-btn');
+    const connectedInfo = document.getElementById('spotify-connected-info');
+    const userNameEl = document.getElementById('spotify-user-name');
+    const userAvatarEl = document.getElementById('spotify-user-avatar');
+
+    if (!connectBtn) return;
+
+    function updateSpotifyUI() {
+        // Dynamically import spotifyAuth to avoid circular deps
+        import('./spotify-auth.js').then(({ spotifyAuth }) => {
+            const connected = spotifyAuth.isConnected();
+            connectBtn.style.display = connected ? 'none' : 'inline-block';
+            connectedInfo.style.display = connected ? 'flex' : 'none';
+            if (connected) {
+                const profile = spotifyAuth.getUserProfile();
+                if (profile) {
+                    userNameEl.textContent = profile.displayName || 'Spotify User';
+                    if (profile.avatar) {
+                        userAvatarEl.src = profile.avatar;
+                        userAvatarEl.style.display = 'inline-block';
+                    } else {
+                        userAvatarEl.style.display = 'none';
+                    }
+                }
+            }
+        });
+    }
+
+    connectBtn.addEventListener('click', () => {
+        import('./spotify-auth.js').then(({ spotifyAuth }) => {
+            spotifyAuth.login();
+        });
+    });
+
+    if (disconnectBtn) {
+        disconnectBtn.addEventListener('click', () => {
+            import('./spotify-auth.js').then(({ spotifyAuth }) => {
+                spotifyAuth.disconnect();
+                updateSpotifyUI();
+                // Notify user
+                const btn = document.getElementById('spotify-connect-btn');
+                if (btn) {
+                    const orig = btn.textContent;
+                    btn.textContent = 'Disconnected';
+                    setTimeout(() => { btn.textContent = orig; }, 2000);
+                }
+            });
+        });
+    }
+
+    // Handle OAuth callback from sessionStorage (service worker redirect)
+    const pendingCode = sessionStorage.getItem('spotify_cb_code');
+    const pendingError = sessionStorage.getItem('spotify_cb_error');
+    if (pendingError) {
+        sessionStorage.removeItem('spotify_cb_error');
+        console.warn('Spotify login failed:', pendingError);
+    } else if (pendingCode) {
+        sessionStorage.removeItem('spotify_cb_code');
+        import('./spotify-auth.js').then(({ spotifyAuth }) => {
+            spotifyAuth.handleCallback(pendingCode).then(() => {
+                updateSpotifyUI();
+                // Show success notification
+                const btn = document.getElementById('spotify-connect-btn');
+                if (btn) {
+                    const orig = btn.textContent;
+                    btn.textContent = 'Connected!';
+                    btn.style.background = '#1DB954';
+                    setTimeout(() => { btn.textContent = orig; btn.style.background = ''; }, 3000);
+                }
+            }).catch(e => {
+                console.error('Spotify token exchange failed:', e);
+            });
+        });
+    }
+
+    updateSpotifyUI();
 }

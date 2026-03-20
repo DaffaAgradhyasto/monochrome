@@ -30,6 +30,18 @@
             rel="stylesheet"
         />
         <link rel="stylesheet" href="/styles.css" />
+        <script>
+            window.__onGCastApiAvailable = function (isAvailable) {
+                if (isAvailable && typeof cast !== 'undefined') {
+                    cast.framework.CastContext.getInstance().setOptions({
+                        receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+                        autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+                    });
+                    console.log('[Cast] Google Cast SDK Initialized');
+                }
+            };
+        </script>
+        <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
     </head>
 
     <body>
@@ -850,6 +862,41 @@
                 <div class="modal-actions">
                     <button id="folder-modal-cancel" class="btn-secondary">Cancel</button>
                     <button id="folder-modal-save" class="btn-primary">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="device-picker-modal" class="modal">
+            <div class="modal-overlay"></div>
+            <div class="modal-content device-picker-content">
+                <div class="device-picker-header">
+                    <h3 data-i18n="modal.devicePicker.title">Connect to a device</h3>
+                    <button id="device-picker-close" class="modal-close">&times;</button>
+                </div>
+                <div class="device-picker-body">
+                    <div class="device-section native-cast-section">
+                        <button id="device-picker-cast-btn" class="device-item cast-btn">
+                            <div class="device-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path><path d="M2 12a9 9 0 0 1 9 9"></path><path d="M2 17a5 5 0 0 1 5 5"></path><path d="M2 22h.01"></path></svg>
+                            </div>
+                            <div class="device-info">
+                                <span class="device-name" data-i18n="modal.devicePicker.wifiDevices">WiFi Devices</span>
+                                <span class="device-status" data-i18n="modal.devicePicker.googleCastAirplay">Google Cast / AirPlay</span>
+                            </div>
+                        </button>
+                    </div>
+                    <div class="device-separator">
+                        <span data-i18n="modal.devicePicker.availableDevices">Available Devices</span>
+                    </div>
+                    <div id="device-list" class="device-list">
+                        <!-- Devices will be injected here -->
+                        <div class="device-item loading">
+                            <span data-i18n="common.searching">Searching...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="device-picker-footer">
+                    <p data-i18n="modal.devicePicker.footer">Bluetooth devices must be connected in your system settings first.</p>
                 </div>
             </div>
         </div>
@@ -2548,6 +2595,14 @@
                         <button class="settings-tab" data-tab="downloads">Downloads</button>
                         <button class="settings-tab" data-tab="instances">Instances</button>
                         <button class="settings-tab" data-tab="system">System</button>
+                        <button class="settings-tab active" data-tab="appearance" data-i18n="settings.tab.appearance">Appearance</button>
+                        <button class="settings-tab" data-tab="interface" data-i18n="settings.tab.interface">Interface</button>
+                                          <button class="settings-tab" data-tab="spotify">Spotify</button>
+<button class="settings-tab" data-tab="scrobbling" data-i18n="settings.tab.scrobbling">Scrobbling</button>
+                        <button class="settings-tab" data-tab="audio" data-i18n="settings.tab.audio">Audio</button>
+                        <button class="settings-tab" data-tab="downloads" data-i18n="settings.tab.downloads">Downloads</button>
+                        <button class="settings-tab" data-tab="instances" data-i18n="settings.tab.instances">Instances</button>
+                        <button class="settings-tab" data-tab="system" data-i18n="settings.tab.system">System</button>
                     </div>
                     <div class="settings-tab-content active" id="settings-tab-appearance">
                         <div class="settings-list">
@@ -3218,6 +3273,26 @@
                             </div>
                         </div>
                     </div>
+          <div class="settings-tab-content" id="settings-tab-spotify">
+            <div class="settings-list">
+              <div class="settings-group">
+                <div class="setting-item" id="spotify-connect-setting">
+                  <div class="info">
+                    <span class="label">Spotify Account</span>
+                    <small class="description">Connect your Spotify account for personalized recommendations based on your listening history</small>
+                  </div>
+                  <div class="control" id="spotify-connect-control">
+                    <button id="spotify-connect-btn" class="btn-secondary">Connect Spotify</button>
+                    <div id="spotify-connected-info" style="display:none;align-items:center;gap:0.75rem;">
+                      <img id="spotify-user-avatar" src="" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;display:none;" />
+                      <span id="spotify-user-name" style="font-size:0.9rem;font-weight:500;"></span>
+                      <button id="spotify-disconnect-btn" class="btn-secondary" style="padding:4px 10px;font-size:0.8rem;">Disconnect</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
                     <div class="settings-tab-content" id="settings-tab-scrobbling">
                         <div class="settings-list">
                             <div class="settings-group">

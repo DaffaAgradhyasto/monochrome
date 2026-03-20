@@ -88,6 +88,122 @@ export class Player {
 
         this.playbackSequence = 0;
 
+        // Google Cast initialization
+        this.castPlayer = null;
+        this.castController = null;
+        this.isCasting = false;
+        this.isApplyingRemoteVolumeChange = false;
+
+        const initCastPlayer = setInterval(() => {
+            if (window.cast && cast.framework && cast.framework.CastContext) {
+                this.castPlayer = new cast.framework.RemotePlayer();
+                this.castController = new cast.framework.RemotePlayerController(this.castPlayer);
+                
+                this.castController.addEventListener(
+                    cast.framework.RemotePlayerEventType.IS_CONNECTED_CHANGED,
+                    () => {
+                        this.isCasting = this.castPlayer.isConnected;
+                        if (this.isCasting) {
+                            if (this.audio) this.audio.pause();
+                            if (this.video) this.video.pause();
+                            this.castPlayer.volumeLevel = this.userVolume;
+                            this.castController.setVolumeLevel();
+                            if (this.currentTrack) {
+                                this.loadCastMedia(this.currentTrack, this.activeElement?.currentTime || 0);
+                            }
+                        } else {
+                            if (!this.castPlayer.isPaused && this.activeElement) {
+                                this.activeElement.currentTime = this.castPlayer.currentTime || 0;
+                                this.safePlay(this.activeElement);
+                            }
+                        }
+                        this.updateMediaSessionPlaybackState();
+                    }
+                );
+
+                this.castController.addEventListener(
+                    cast.framework.RemotePlayerEventType.CURRENT_TIME_CHANGED,
+                    () => {
+                        if (this.isCasting && this.activeElement) {
+                            // Dispatch timeupdate so ui.js updates progress bar
+                            this.activeElement.dispatchEvent(new Event('timeupdate'));
+                        }
+                    }
+                );
+
+                this.castController.addEventListener(
+                    cast.framework.RemotePlayerEventType.IS_PAUSED_CHANGED,
+                    () => {
+                        if (this.isCasting && this.activeElement) {
+                            if (this.castPlayer.isPaused) {
+                                this.activeElement.dispatchEvent(new Event('pause'));
+                            } else {
+                                this.activeElement.dispatchEvent(new Event('play'));
+                            }
+                            this.updateMediaSessionPlaybackState();
+                        }
+                    }
+                );
+
+                this.castController.addEventListener(
+                    cast.framework.RemotePlayerEventType.VOLUME_LEVEL_CHANGED,
+                    () => {
+                        if (this.isCasting && this.activeElement) {
+                            this.isApplyingRemoteVolumeChange = true;
+                            this.userVolume = Math.max(0, Math.min(1, this.castPlayer.volumeLevel ?? 0));
+                            localStorage.setItem('volume', this.userVolume);
+                            this.activeElement.dispatchEvent(new Event('volumechange'));
+                            this.isApplyingRemoteVolumeChange = false;
+                        }
+                    }
+                );
+
+                this.castController.addEventListener(
+                    cast.framework.RemotePlayerEventType.IS_MUTED_CHANGED,
+                    () => {
+                        if (this.isCasting && this.activeElement) {
+                            this.isApplyingRemoteVolumeChange = true;
+                            this.activeElement.muted = this.castPlayer.isMuted;
+                            localStorage.setItem('muted', this.castPlayer.isMuted);
+                            this.activeElement.dispatchEvent(new Event('volumechange'));
+                            this.isApplyingRemoteVolumeChange = false;
+                        }
+                    }
+                );
+
+                clearInterval(initCastPlayer);
+            }
+        }, 1000);
+        setTimeout(() => clearInterval(initCastPlayer), 15000);
+
+        [this.audio, this.video].forEach((element) => {
+            if (!element) return;
+            element.addEventListener('volumechange', () => {
+                if (
+                    !this.isCasting ||
+                    !this.castPlayer ||
+                    !this.castController ||
+                    this.isApplyingRemoteVolumeChange ||
+                    this.activeElement !== element
+                ) {
+                    return;
+                }
+
+                const nextMuted = Boolean(element.muted);
+                const nextVolume = Math.max(0, Math.min(1, this.userVolume));
+
+                if (this.castPlayer.isMuted !== nextMuted) {
+                    this.castPlayer.isMuted = nextMuted;
+                    this.castController.muteOrUnmute();
+                }
+
+                if (Math.abs((this.castPlayer.volumeLevel ?? 0) - nextVolume) > 0.001) {
+                    this.castPlayer.volumeLevel = nextVolume;
+                    this.castController.setVolumeLevel();
+                }
+            });
+        });
+
         window.addEventListener('beforeunload', () => {
             this.saveQueueState();
         });
@@ -136,6 +252,10 @@ export class Player {
     setVolume(value) {
         this.userVolume = Math.max(0, Math.min(1, value));
         localStorage.setItem('volume', this.userVolume);
+        if (this.isCasting && this.castPlayer && this.castController) {
+            this.castPlayer.volumeLevel = this.userVolume;
+            this.castController.setVolumeLevel();
+        }
         this.applyReplayGain();
     }
 
@@ -768,6 +888,13 @@ export class Player {
                 if (startTime > 0) {
                     activeElement.currentTime = startTime;
                 }
+                if (this.isCasting) {
+                    const casted = await this.loadCastMedia(track, resolvedStartTime || 0, streamUrl);
+                    if (casted) {
+                        this.preloadNextTracks();
+                        return;
+                    }
+                }
                 const played = await this.safePlay(activeElement);
                 if (!played) return;
             } else if (track.isLocal && track.file) {
@@ -786,6 +913,13 @@ export class Player {
 
                 if (startTime > 0) {
                     activeElement.currentTime = startTime;
+                }
+                if (this.isCasting) {
+                    const casted = await this.loadCastMedia(track, resolvedStartTime || 0, streamUrl);
+                    if (casted) {
+                        this.preloadNextTracks();
+                        return;
+                    }
                 }
                 const played = await this.safePlay(activeElement);
                 if (!played) return;
@@ -823,6 +957,13 @@ export class Player {
 
                 if (startTime > 0) {
                     activeElement.currentTime = startTime;
+                }
+                if (this.isCasting) {
+                    const casted = await this.loadCastMedia(track, resolvedStartTime || 0, streamUrl);
+                    if (casted) {
+                        this.preloadNextTracks();
+                        return;
+                    }
                 }
 
                 await this.safePlay(activeElement);
@@ -882,6 +1023,13 @@ export class Player {
 
                     const canPlay = await this.waitForCanPlayOrTimeout(activeElement);
                     if (!canPlay || this.playbackSequence !== currentSequence) return;
+                    if (this.isCasting) {
+                        const casted = await this.loadCastMedia(track, resolvedStartTime || 0, streamUrl);
+                        if (casted) {
+                            this.preloadNextTracks();
+                            return;
+                        }
+                    }
                     await this.safePlay(activeElement);
                 } else {
                     activeElement.src = streamUrl;
@@ -893,6 +1041,13 @@ export class Player {
 
                     if (startTime > 0) {
                         activeElement.currentTime = startTime;
+                    }
+                    if (this.isCasting) {
+                        const casted = await this.loadCastMedia(track, resolvedStartTime || 0, streamUrl);
+                        if (casted) {
+                            this.preloadNextTracks();
+                            return;
+                        }
                     }
                     const played = await this.safePlay(activeElement);
                     if (!played) return;
@@ -1187,6 +1342,11 @@ export class Player {
     }
 
     handlePlayPause() {
+        if (this.isCasting && this.castController) {
+            this.castController.playOrPause();
+            return;
+        }
+
         const el = this.activeElement;
         if (!el.src || el.error) {
             if (this.currentTrack) {
@@ -1209,7 +1369,22 @@ export class Player {
         }
     }
 
+    seekTo(time) {
+        if (this.isCasting && this.castPlayer && this.castController) {
+            this.castPlayer.currentTime = time;
+            this.castController.seek();
+            return;
+        }
+        this.activeElement.currentTime = time;
+        this.updateMediaSessionPositionState();
+    }
+
     seekBackward(seconds = 10) {
+        if (this.isCasting && this.castPlayer && this.castController) {
+            this.castPlayer.currentTime = Math.max(0, this.castPlayer.currentTime - seconds);
+            this.castController.seek();
+            return;
+        }
         const el = this.activeElement;
         const newTime = Math.max(0, el.currentTime - seconds);
         el.currentTime = newTime;
@@ -1217,11 +1392,78 @@ export class Player {
     }
 
     seekForward(seconds = 10) {
+        if (this.isCasting && this.castPlayer && this.castController) {
+            this.castPlayer.currentTime = Math.min(this.castPlayer.duration || 0, this.castPlayer.currentTime + seconds);
+            this.castController.seek();
+            return;
+        }
         const el = this.activeElement;
         const duration = el.duration || 0;
         const newTime = Math.min(duration, el.currentTime + seconds);
         el.currentTime = newTime;
         this.updateMediaSessionPositionState();
+    }
+
+    getCastContentType(url, trackType = 'audio') {
+        const normalized = String(url || '').toLowerCase();
+        if (normalized.includes('.m3u8') || normalized.includes('application/vnd.apple.mpegurl')) {
+            return 'application/x-mpegurl';
+        }
+        if (normalized.includes('.mpd')) {
+            return 'application/dash+xml';
+        }
+        if (normalized.includes('.flac')) {
+            return 'audio/flac';
+        }
+        if (normalized.includes('.mp3')) {
+            return 'audio/mpeg';
+        }
+        if (normalized.includes('.opus')) {
+            return 'audio/opus';
+        }
+        if (normalized.includes('.wav')) {
+            return 'audio/wav';
+        }
+        if (normalized.includes('.webm')) {
+            return trackType === 'video' ? 'video/webm' : 'audio/webm';
+        }
+        return trackType === 'video' ? 'video/mp4' : 'audio/mp4';
+    }
+
+    async loadCastMedia(track, startTime = 0, streamUrl = null) {
+        if (!this.isCasting || !window.cast) return false;
+        
+        let url = streamUrl || track.audioUrl || track.remoteUrl;
+        if (!url || url.startsWith('blob:') || track.isLocal) {
+            console.warn("Cannot cast local files or blob URLs");
+            return false;
+        }
+
+        try {
+            const mediaInfo = new chrome.cast.media.MediaInfo(url, this.getCastContentType(url, track.type));
+            mediaInfo.metadata = new chrome.cast.media.MusicTrackMediaMetadata();
+            mediaInfo.metadata.title = track.title || 'Unknown Track';
+            mediaInfo.metadata.artist = track.artist || track.artists?.[0]?.name || 'Unknown Artist';
+            
+            let cover = track.album?.cover || track.cover;
+            if (cover) {
+                if (cover.startsWith('/')) cover = window.location.origin + cover;
+                mediaInfo.metadata.images = [new chrome.cast.Image(cover)];
+            }
+
+            const request = new chrome.cast.media.LoadRequest(mediaInfo);
+            request.currentTime = startTime;
+            request.autoplay = true;
+
+            const session = cast.framework.CastContext.getInstance().getCurrentSession();
+            if (session) {
+                await session.loadMedia(request);
+                return true;
+            }
+        } catch (e) {
+            console.error("Cast loadMedia failed", e);
+        }
+        return false;
     }
 
     toggleShuffle() {
@@ -1474,15 +1716,15 @@ export class Player {
 
     updateMediaSessionPlaybackState() {
         if (!('mediaSession' in navigator)) return;
-        navigator.mediaSession.playbackState = this.activeElement.paused ? 'paused' : 'playing';
+        navigator.mediaSession.playbackState = this.isPaused ? 'paused' : 'playing';
     }
 
     updateMediaSessionPositionState() {
         if (!('mediaSession' in navigator)) return;
         if (!('setPositionState' in navigator.mediaSession)) return;
 
-        const el = this.activeElement;
-        const duration = el.duration;
+
+        const duration = this.duration;
 
         if (!duration || isNaN(duration) || !isFinite(duration)) {
             return;
@@ -1491,8 +1733,8 @@ export class Player {
         try {
             navigator.mediaSession.setPositionState({
                 duration: duration,
-                playbackRate: el.playbackRate || 1,
-                position: Math.min(el.currentTime, duration),
+                playbackRate: this.isCasting ? 1.0 : (this.activeElement?.playbackRate || 1),
+                position: Math.min(this.currentTime, duration),
             });
         } catch (error) {
             console.log('Failed to update Media Session position:', error);
@@ -1635,5 +1877,26 @@ export class Player {
         } catch (e) {
             console.error('Failed to set window title:', e);
         }
+    }
+
+    get currentTime() {
+        if (this.isCasting && this.castPlayer) {
+            return this.castPlayer.currentTime || 0;
+        }
+        return this.activeElement?.currentTime || 0;
+    }
+
+    get duration() {
+        if (this.isCasting && this.castPlayer && this.castPlayer.duration) {
+            return this.castPlayer.duration;
+        }
+        return this.activeElement?.duration || 0;
+    }
+
+    get isPaused() {
+        if (this.isCasting && this.castPlayer) {
+            return this.castPlayer.isPaused;
+        }
+        return this.activeElement?.paused ?? true;
     }
 }

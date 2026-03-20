@@ -169,6 +169,10 @@ export class LyricsManager {
         this.isGeniusMode = false;
         this.currentGeniusData = null;
         this.timingOffset = 0; // Offset in milliseconds (positive = delay lyrics, negative = advance lyrics)
+        this.isTranslateMode = false;
+        this.translateLanguage = localStorage.getItem('lyricsTranslateLang') || 'en';
+        this.translateCache = new Map();
+        this.translationHighlightStyleId = 'monochrome-translation-highlight-style';
     }
 
     // Get timing offset for current track
@@ -378,6 +382,154 @@ export class LyricsManager {
         }
     }
 
+    async translateText(text, targetLang) {
+        if (!text || !targetLang) return text;
+
+        const cacheKey = JSON.stringify([text, targetLang]);
+        if (this.translateCache.has(cacheKey)) {
+            return this.translateCache.get(cacheKey);
+        }
+
+        try {
+            const response = await fetch(
+                `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`
+            );
+
+            if (!response.ok) {
+                return text;
+            }
+
+            const data = await response.json();
+            const translatedText = Array.isArray(data?.[0])
+                ? data[0]
+                      .map((part) => (Array.isArray(part) ? part[0] || '' : ''))
+                      .join('')
+                      .trim()
+                : text;
+
+            const result = translatedText || text;
+            this.translateCache.set(cacheKey, result);
+            return result;
+        } catch (error) {
+            console.warn('Lyrics translation failed:', error);
+            return text;
+        }
+    }
+
+    async translateLyricsContent(amLyricsElement) {
+        if (!amLyricsElement || !this.isTranslateMode) {
+            return;
+        }
+
+        const rootToTraverse = amLyricsElement.shadowRoot || amLyricsElement;
+        const lyricLines = rootToTraverse.querySelectorAll('[id^="lyrics-line-"]');
+
+        for (const lyricLine of lyricLines) {
+            const lineContainer = lyricLine.querySelector('.lyrics-line-container');
+            const mainVocalContainer = lyricLine.querySelector('.main-vocal-container');
+
+            if (!lineContainer || !mainVocalContainer) {
+                continue;
+            }
+
+            const wordElements = Array.from(mainVocalContainer.querySelectorAll('.lyrics-word'));
+            const words = wordElements
+                .map((wordElement) => {
+                    const sourceText = wordElement.dataset.originalText || wordElement.textContent || '';
+                    return sourceText.replace(/\s+/g, ' ').trim();
+                })
+                .filter(Boolean);
+
+            const fallbackLine = mainVocalContainer.textContent?.replace(/\s+/g, ' ').trim() || '';
+            let originalLine = fallbackLine;
+
+            if (words.length > 0) {
+                const hasAsianWords = words.some((word) => containsAsianText(word));
+                originalLine = hasAsianWords ? words.join('') : words.join(' ');
+            }
+
+            if (!originalLine) {
+                continue;
+            }
+
+            const translatedLine = await this.translateText(originalLine, this.translateLanguage);
+            const existingTranslatedLine = lineContainer.querySelector('.monochrome-translated-line');
+
+            if (!translatedLine || translatedLine === originalLine) {
+                existingTranslatedLine?.remove();
+                continue;
+            }
+
+            if (existingTranslatedLine) {
+                existingTranslatedLine.textContent = translatedLine;
+            } else {
+                const translatedElement = document.createElement('div');
+                translatedElement.className = 'lyrics-translation-container monochrome-translated-line';
+                translatedElement.textContent = translatedLine;
+                lineContainer.appendChild(translatedElement);
+            }
+        }
+
+        this.syncTranslationHighlightState(rootToTraverse);
+    }
+
+    restoreTranslatedLyricsContent(amLyricsElement) {
+        if (!amLyricsElement) return;
+
+        const rootToTraverse = amLyricsElement.shadowRoot || amLyricsElement;
+        rootToTraverse.querySelectorAll('.monochrome-translated-line').forEach((element) => element.remove());
+    }
+
+    setTranslateLanguage(lang) {
+        this.translateLanguage = lang || 'en';
+        try {
+            localStorage.setItem('lyricsTranslateLang', this.translateLanguage);
+        } catch (e) {
+            console.warn('Failed to save translate language preference:', e);
+        }
+    }
+
+    getTranslateLanguage() {
+        try {
+            return localStorage.getItem('lyricsTranslateLang') || this.translateLanguage || 'en';
+        } catch {
+            return this.translateLanguage || 'en';
+        }
+    }
+
+    getTranslateMode() {
+        try {
+            return localStorage.getItem('lyricsTranslateMode') === 'true';
+        } catch {
+            return false;
+        }
+    }
+
+    async toggleTranslateMode(amLyricsElement, lang) {
+        if (lang) {
+            this.setTranslateLanguage(lang);
+        }
+
+        this.isTranslateMode = !this.isTranslateMode;
+
+        try {
+            localStorage.setItem('lyricsTranslateMode', this.isTranslateMode ? 'true' : 'false');
+        } catch (e) {
+            console.warn('Failed to save translate mode preference:', e);
+        }
+
+        if (amLyricsElement) {
+            if (this.isTranslateMode) {
+                this.setupLyricsObserver(amLyricsElement);
+                await this.translateLyricsContent(amLyricsElement);
+            } else {
+                this.restoreTranslatedLyricsContent(amLyricsElement);
+            }
+        }
+
+        return this.isTranslateMode;
+    }
+
     async ensureComponentLoaded() {
         if (this.componentLoaded) return;
 
@@ -508,6 +660,8 @@ export class LyricsManager {
 
         // Check for shadow DOM
         const observeRoot = amLyricsElement.shadowRoot || amLyricsElement;
+        this.injectTranslationHighlightStyle(observeRoot);
+        this.syncTranslationHighlightState(observeRoot);
 
         this.romajiObserver = new MutationObserver((mutations) => {
             // Check if any relevant mutation occurred
@@ -533,6 +687,13 @@ export class LyricsManager {
                     return relevant;
                 }
                 if (mutation.type === 'characterData') return true;
+                if (
+                    mutation.type === 'attributes' &&
+                    mutation.target?.nodeType === Node.ELEMENT_NODE &&
+                    mutation.target.id?.startsWith('lyrics-line-')
+                ) {
+                    return true;
+                }
                 return false;
             });
 
@@ -548,9 +709,13 @@ export class LyricsManager {
                 if (this.isRomajiMode) {
                     await this.convertLyricsContent(amLyricsElement);
                 }
+                if (this.isTranslateMode) {
+                    await this.translateLyricsContent(amLyricsElement);
+                }
                 if (this.isGeniusMode && this.currentGeniusData) {
                     this.applyGeniusAnnotations(amLyricsElement, this.currentGeniusData.referents);
                 }
+                this.syncTranslationHighlightState(observeRoot);
             }, 100);
         });
 
@@ -560,16 +725,65 @@ export class LyricsManager {
             childList: true,
             subtree: true,
             characterData: true, // Watch text changes to catch lyric refreshes
-            attributes: false, // Don't watch attribute changes (highlight, etc)
+            attributes: true,
+            attributeFilter: ['class', 'style', 'data-active', 'aria-current'],
         });
 
         // Initial conversion if Romaji mode is enabled - single attempt, no periodic polling
         if (this.isRomajiMode) {
             this.convertLyricsContent(amLyricsElement);
         }
+        if (this.isTranslateMode) {
+            this.translateLyricsContent(amLyricsElement);
+        }
         if (this.isGeniusMode && this.currentGeniusData) {
             this.applyGeniusAnnotations(amLyricsElement, this.currentGeniusData.referents);
         }
+        this.syncTranslationHighlightState(observeRoot);
+    }
+
+    injectTranslationHighlightStyle(root) {
+        if (!root || !root.querySelector) return;
+        if (root.querySelector(`#${this.translationHighlightStyleId}`)) return;
+
+        const style = document.createElement('style');
+        style.id = this.translationHighlightStyleId;
+        style.textContent = `
+            [id^="lyrics-line-"].active .lyrics-translation-container,
+            [id^="lyrics-line-"].active .monochrome-translated-line,
+            [id^="lyrics-line-"].pre-active .lyrics-translation-container,
+            [id^="lyrics-line-"].pre-active .monochrome-translated-line,
+            [id^="lyrics-line-"][data-active="true"] .lyrics-translation-container,
+            [id^="lyrics-line-"][data-active="true"] .monochrome-translated-line,
+            [id^="lyrics-line-"][aria-current="true"] .lyrics-translation-container,
+            [id^="lyrics-line-"][aria-current="true"] .monochrome-translated-line,
+            [id^="lyrics-line-"].translation-active .lyrics-translation-container,
+            [id^="lyrics-line-"].translation-active .monochrome-translated-line {
+                color: var(--am-lyrics-highlight-color, var(--highlight-color, #fff));
+                opacity: 1;
+                text-shadow: 0 0 12px rgb(var(--highlight-rgb, 255 255 255) / 0.3);
+                transition: color 0.3s ease, opacity 0.3s ease, text-shadow 0.3s ease;
+            }
+        `;
+
+        root.appendChild(style);
+    }
+
+    isLyricsLineActive(lineElement) {
+        if (!lineElement) return false;
+        if (lineElement.classList.contains('active') || lineElement.classList.contains('pre-active')) return true;
+        if (lineElement.classList.contains('active-line') || lineElement.classList.contains('lyrics-activest')) return true;
+        if (lineElement.getAttribute('data-active') === 'true') return true;
+        if (lineElement.getAttribute('aria-current') === 'true') return true;
+        return false;
+    }
+
+    syncTranslationHighlightState(root) {
+        if (!root || !root.querySelectorAll) return;
+        root.querySelectorAll('[id^="lyrics-line-"]').forEach((line) => {
+            const isActive = this.isLyricsLineActive(line);
+            line.classList.toggle('translation-active', isActive);
+        });
     }
 
     // Convert lyrics content to Romaji
@@ -601,12 +815,13 @@ export class LyricsManager {
 
         // Convert Japanese text to Romaji (using async/await for Kuroshiro)
         for (const textNode of textNodes) {
-            if (!textNode.parentElement) {
+            const parentElement = textNode.parentElement;
+            if (!parentElement) {
                 continue;
             }
 
-            const parentTag = textNode.parentElement.tagName?.toLowerCase();
-            const parentClass = String(textNode.parentElement.className || '');
+            const parentTag = parentElement.tagName?.toLowerCase();
+            const parentClass = String(parentElement.className || '');
 
             // Skip elements that shouldn't be converted
             const skipTags = ['script', 'style', 'code', 'input', 'textarea', 'time'];
@@ -631,6 +846,10 @@ export class LyricsManager {
 
             // Check if contains Japanese - convert if we find Japanese
             if (this.containsJapanese(originalText)) {
+                const lyricsWordEl = parentElement.closest('.lyrics-word') || parentElement;
+                if (!lyricsWordEl.dataset.originalText) {
+                    lyricsWordEl.dataset.originalText = originalText;
+                }
                 const romajiText = await this.convertToRomaji(originalText);
 
                 // Only update if conversion produced different text
@@ -761,6 +980,8 @@ export function openLyricsPanel(track, audioPlayer, lyricsManager, forceOpen = f
 
     // Load Kuroshiro in background only if track has Asian text and Romaji mode is enabled
     const isRomajiMode = manager.getRomajiMode();
+    manager.isTranslateMode = manager.getTranslateMode();
+    manager.translateLanguage = manager.getTranslateLanguage();
     if (isRomajiMode && trackHasAsianText(track) && !manager.kuroshiroLoaded && !manager.kuroshiroLoading) {
         manager.loadKuroshiro().catch((err) => {
             console.warn('Failed to load Kuroshiro for Romaji conversion:', err);
@@ -773,8 +994,36 @@ export function openLyricsPanel(track, audioPlayer, lyricsManager, forceOpen = f
     const renderControls = (container) => {
         const isRomajiMode = manager.getRomajiMode();
         manager.isRomajiMode = isRomajiMode;
+        const isTranslateMode = manager.getTranslateMode();
+        manager.isTranslateMode = isTranslateMode;
+        manager.translateLanguage = manager.getTranslateLanguage();
         const isGeniusMode = manager.isGeniusMode;
         const offsetDisplay = manager.getOffsetDisplayString(manager.timingOffset);
+        const translateLanguages = [
+            { code: 'en', name: 'English' },
+            { code: 'id', name: 'Indonesian' },
+            { code: 'ja', name: 'Japanese' },
+            { code: 'ko', name: 'Korean' },
+            { code: 'zh-CN', name: 'Chinese (Simplified)' },
+            { code: 'es', name: 'Spanish' },
+            { code: 'fr', name: 'French' },
+            { code: 'de', name: 'German' },
+            { code: 'pt', name: 'Portuguese' },
+            { code: 'ru', name: 'Russian' },
+            { code: 'ar', name: 'Arabic' },
+            { code: 'hi', name: 'Hindi' },
+            { code: 'th', name: 'Thai' },
+            { code: 'vi', name: 'Vietnamese' },
+            { code: 'ms', name: 'Malay' },
+            { code: 'tr', name: 'Turkish' },
+            { code: 'it', name: 'Italian' },
+        ];
+        const languageOptions = translateLanguages
+            .map(
+                (lang) =>
+                    `<option value="${lang.code}" ${manager.translateLanguage === lang.code ? 'selected' : ''}>${lang.name}</option>`
+            )
+            .join('');
 
         container.innerHTML = `
             <div class="lyrics-timing-controls">
@@ -792,6 +1041,19 @@ export function openLyricsPanel(track, audioPlayer, lyricsManager, forceOpen = f
             <button id="romaji-toggle-btn" class="btn-icon" title="Toggle Romaji (Japanese to Latin)" data-enabled="${isRomajiMode}" style="color: ${isRomajiMode ? 'var(--primary)' : ''}">
                 ${SVG_GLOBE(20)}
             </button>
+            <button id="translate-toggle-btn" class="btn-icon" title="Translate lyrics" data-enabled="${isTranslateMode}" style="color: ${isTranslateMode ? 'var(--primary)' : ''}">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M2 12h20"></path>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                    <path d="M8 8h4"></path>
+                    <path d="M10 8v1"></path>
+                    <path d="M8.5 10.5 11.5 13.5"></path>
+                </svg>
+            </button>
+            <select id="translate-language-select" class="btn-icon" title="Translation language" style="display: ${isTranslateMode ? 'inline-flex' : 'none'}; max-width: 140px;">
+                ${languageOptions}
+            </select>
             <button id="genius-toggle-btn" class="btn-icon ${isGeniusMode ? 'active-genius' : ''}" title="Genius Mode" style="${isGeniusMode ? 'color: #ffff64;' : ''}">
                 ${isGeniusMode ? SVG_GENIUS_ACTIVE(20) : SVG_GENIUS_INACTIVE(20)}
             </button>
@@ -833,21 +1095,53 @@ export function openLyricsPanel(track, audioPlayer, lyricsManager, forceOpen = f
 
         // Romaji toggle button handler
         const romajiBtn = container.querySelector('#romaji-toggle-btn');
+        const translateBtn = container.querySelector('#translate-toggle-btn');
+        const translateSelect = container.querySelector('#translate-language-select');
         if (romajiBtn) {
             const updateRomajiBtn = () => {
                 const enabled = manager.isRomajiMode;
                 romajiBtn.setAttribute('data-enabled', enabled);
                 romajiBtn.style.color = enabled ? 'var(--primary)' : '';
             };
+            const updateTranslateUI = () => {
+                if (!translateBtn || !translateSelect) return;
+                const enabled = manager.isTranslateMode;
+                translateBtn.setAttribute('data-enabled', enabled);
+                translateBtn.style.color = enabled ? 'var(--primary)' : '';
+                translateSelect.style.display = enabled ? 'inline-flex' : 'none';
+            };
             updateRomajiBtn();
+            updateTranslateUI();
 
             romajiBtn.addEventListener('click', async () => {
                 const amLyrics = sidePanelManager.panel.querySelector('am-lyrics');
                 if (amLyrics) {
                     await manager.toggleRomajiMode(amLyrics);
                     updateRomajiBtn();
+                    updateTranslateUI();
                 }
             });
+
+            if (translateBtn) {
+                translateBtn.addEventListener('click', async () => {
+                    const amLyrics = sidePanelManager.panel.querySelector('am-lyrics');
+                    await manager.toggleTranslateMode(amLyrics, translateSelect?.value || manager.translateLanguage);
+                    updateTranslateUI();
+                    updateRomajiBtn();
+                });
+            }
+
+            if (translateSelect) {
+                translateSelect.addEventListener('change', async (e) => {
+                    const selectedLang = e.target.value;
+                    manager.setTranslateLanguage(selectedLang);
+                    const amLyrics = sidePanelManager.panel.querySelector('am-lyrics');
+                    if (amLyrics && manager.isTranslateMode) {
+                        manager.restoreTranslatedLyricsContent(amLyrics);
+                        await manager.translateLyricsContent(amLyrics);
+                    }
+                });
+            }
         }
 
         // Genius toggle
@@ -945,6 +1239,12 @@ async function renderLyricsComponent(container, track, audioPlayer, lyricsManage
 
         // Set initial Romaji mode
         lyricsManager.isRomajiMode = lyricsManager.getRomajiMode();
+        lyricsManager.isTranslateMode = lyricsManager.getTranslateMode();
+        lyricsManager.translateLanguage = lyricsManager.getTranslateLanguage();
+        if (lyricsManager.isTranslateMode && lyricsManager.isRomajiMode) {
+            lyricsManager.isRomajiMode = false;
+            lyricsManager.setRomajiMode(false);
+        }
         lyricsManager.currentTrackId = track.id;
 
         const title = getTrackTitle(track);
@@ -1041,6 +1341,11 @@ async function renderLyricsComponent(container, track, audioPlayer, lyricsManage
             await lyricsManager.convertLyricsContent(amLyrics);
             // One retry after 500ms in case more lyrics load
             setTimeout(() => lyricsManager.convertLyricsContent(amLyrics), 500);
+        }
+        if (lyricsManager.isTranslateMode) {
+            await lyricsManager.translateLyricsContent(amLyrics);
+            // One retry after 500ms in case more lyrics load asynchronously
+            setTimeout(() => lyricsManager.translateLyricsContent(amLyrics), 500);
         }
 
         if (lyricsManager.isGeniusMode && lyricsManager.currentGeniusData) {

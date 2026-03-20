@@ -139,5 +139,12 @@
   "common.disconnect": "Disconnect",
   "common.connect": "Connect",
   "common.openThemeStore": "Open Theme Store",
-  "common.unapplyTheme": "Unapply Theme"
+  "common.unapplyTheme": "Unapply Theme",
+  "common.searching": "Searching...",
+  "modal.devicePicker.title": "Connect to a device",
+  "modal.devicePicker.wifiDevices": "WiFi Devices",
+  "modal.devicePicker.googleCastAirplay": "Google Cast / AirPlay",
+  "modal.devicePicker.availableDevices": "Available Devices",
+  "modal.devicePicker.footer": "Bluetooth devices must be connected in your system settings first.",
+  "player.cast": "Cast"
 }

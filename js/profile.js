@@ -4,8 +4,14 @@ import { navigate } from './router.js';
 import { MusicAPI } from './music-api.js';
 import { apiSettings } from './storage.js';
 import { debounce, escapeHtml } from './utils.js';
+import { Storage, ID } from 'appwrite';
+import { client } from './accounts/config.js';
 
 // objects execution february 29th 2027
+
+// Appwrite Storage for profile images
+const APPWRITE_BUCKET_ID = '69bd00090010bb60c722';
+const storage = new Storage(client);
 
 const profilePage = document.getElementById('page-profile');
 const editProfileModal = document.getElementById('edit-profile-modal');
@@ -57,6 +63,10 @@ async function uploadImage(file) {
         console.error('Upload error:', error);
         throw error;
     }
+  const fileId = ID.unique();
+  const uploaded = await storage.createFile(APPWRITE_BUCKET_ID, fileId, file);
+  const url = `https://fra.cloud.appwrite.io/v1/storage/buckets/${APPWRITE_BUCKET_ID}/files/${uploaded.$id}/view?project=69ba589c0035145a5327`;
+  return url;
 }
 
 function setupImageUploadControl(idPrefix) {

@@ -1127,6 +1127,13 @@ export class UIRenderer {
         overlay.style.display = 'flex';
 
         const startVisualizer = async () => {
+        const startVisualizer = () => {
+            if (this.player?.isCasting) {
+                if (this.visualizer) this.visualizer.stop();
+                overlay.classList.remove('visualizer-active');
+                return;
+            }
+
             if (!visualizerSettings.isEnabled()) {
                 if (this.visualizer) this.visualizer.stop();
                 return;
@@ -1325,8 +1332,7 @@ export class UIRenderer {
 
         let lastPausedState = null;
         const updatePlayBtn = () => {
-            const activeEl = this.player.activeElement;
-            const isPaused = activeEl.paused;
+            const isPaused = this.player.isPaused;
             if (isPaused === lastPausedState) return;
             lastPausedState = isPaused;
 
@@ -1368,20 +1374,19 @@ export class UIRenderer {
         let lastFsSeekPosition = 0;
 
         const updateFsSeekUI = (position) => {
-            const activeEl = this.player.activeElement;
-            if (!isNaN(activeEl.duration)) {
+            const duration = this.player.duration;
+            if (!isNaN(duration) && duration !== Infinity) {
                 progressFill.style.width = `${position * 100}%`;
                 if (currentTimeEl) {
-                    currentTimeEl.textContent = formatTime(position * activeEl.duration);
+                    currentTimeEl.textContent = formatTime(position * duration);
                 }
             }
         };
 
         progressBar.addEventListener('mousedown', (e) => {
-            const activeEl = this.player.activeElement;
             isFsSeeking = true;
-            wasFsPlaying = !activeEl.paused;
-            if (wasFsPlaying) activeEl.pause();
+            wasFsPlaying = !this.player.isPaused;
+            if (wasFsPlaying) this.player.pause();
 
             const rect = progressBar.getBoundingClientRect();
             const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
@@ -1392,11 +1397,10 @@ export class UIRenderer {
         progressBar.addEventListener(
             'touchstart',
             (e) => {
-                const activeEl = this.player.activeElement;
                 e.preventDefault();
                 isFsSeeking = true;
-                wasFsPlaying = !activeEl.paused;
-                if (wasFsPlaying) activeEl.pause();
+                wasFsPlaying = !this.player.isPaused;
+                if (wasFsPlaying) this.player.pause();
 
                 const touch = e.touches[0];
                 const rect = progressBar.getBoundingClientRect();
@@ -1432,10 +1436,10 @@ export class UIRenderer {
 
         document.addEventListener('mouseup', () => {
             if (isFsSeeking) {
-                const activeEl = this.player.activeElement;
-                if (!isNaN(activeEl.duration)) {
-                    activeEl.currentTime = lastFsSeekPosition * activeEl.duration;
-                    if (wasFsPlaying) activeEl.play();
+                const duration = this.player.duration;
+                if (!isNaN(duration) && duration !== Infinity) {
+                    this.player.seekTo(lastFsSeekPosition * duration);
+                    if (wasFsPlaying) this.player.play();
                 }
                 isFsSeeking = false;
             }
@@ -1443,10 +1447,10 @@ export class UIRenderer {
 
         document.addEventListener('touchend', () => {
             if (isFsSeeking) {
-                const activeEl = this.player.activeElement;
-                if (!isNaN(activeEl.duration)) {
-                    activeEl.currentTime = lastFsSeekPosition * activeEl.duration;
-                    if (wasFsPlaying) activeEl.play();
+                const duration = this.player.duration;
+                if (!isNaN(duration) && duration !== Infinity) {
+                    this.player.seekTo(lastFsSeekPosition * duration);
+                    if (wasFsPlaying) this.player.play();
                 }
                 isFsSeeking = false;
             }
@@ -1683,11 +1687,10 @@ export class UIRenderer {
         const update = () => {
             if (document.getElementById('fullscreen-cover-overlay').style.display === 'none') return;
 
-            const activeEl = this.player.activeElement;
-            const duration = activeEl.duration || 0;
-            const current = activeEl.currentTime || 0;
+            const duration = this.player.duration || 0;
+            const current = this.player.currentTime || 0;
 
-            if (duration > 0) {
+            if (duration > 0 && duration !== Infinity) {
                 // Only update progress if not currently seeking (user is dragging)
                 if (!isFsSeeking) {
                     const percent = (current / duration) * 100;
