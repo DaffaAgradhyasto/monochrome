@@ -756,7 +756,7 @@ export class LyricsManager {
             [id^="lyrics-line-"].translation-active .monochrome-translated-line {
                 color: var(--am-lyrics-highlight-color, var(--highlight-color, #fff));
                 opacity: 1;
-                text-shadow: 0 0 12px color-mix(in srgb, var(--am-lyrics-highlight-color, var(--highlight-color, #fff)) 30%, transparent);
+                text-shadow: 0 0 12px rgb(var(--highlight-rgb, 255 255 255) / 0.3);
                 transition: color 0.3s ease, opacity 0.3s ease, text-shadow 0.3s ease;
             }
         `;
@@ -770,8 +770,7 @@ export class LyricsManager {
         if (lineElement.classList.contains('active-line') || lineElement.classList.contains('lyrics-activest')) return true;
         if (lineElement.getAttribute('data-active') === 'true') return true;
         if (lineElement.getAttribute('aria-current') === 'true') return true;
-        const inlineColor = lineElement.style?.color || '';
-        return inlineColor.length > 0;
+        return false;
     }
 
     syncTranslationHighlightState(root) {
@@ -779,9 +778,6 @@ export class LyricsManager {
         root.querySelectorAll('[id^="lyrics-line-"]').forEach((line) => {
             const isActive = this.isLyricsLineActive(line);
             line.classList.toggle('translation-active', isActive);
-            line.querySelectorAll('.lyrics-translation-container, .monochrome-translated-line').forEach((el) => {
-                el.classList.toggle('translation-active', isActive);
-            });
         });
     }
 
