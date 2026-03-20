@@ -2631,17 +2631,6 @@ export async function initializeSettings(scrobbler, player, api, ui) {
         });
     }
 
-    const openWhatsNewBtn = document.getElementById('open-whats-new-btn');
-    if (openWhatsNewBtn) {
-        openWhatsNewBtn.addEventListener('click', () => {
-            if (window.MonochromeWhatsNew?.openDialog) {
-                window.MonochromeWhatsNew.openDialog();
-            } else {
-                window.dispatchEvent(new Event('open-whats-new'));
-            }
-        });
-    }
-
     const sidebarShowGithubToggle = document.getElementById('sidebar-show-githubbtn-toggle');
     if (sidebarShowGithubToggle) {
         sidebarShowGithubToggle.checked = sidebarSectionSettings.shouldShowGithub();
