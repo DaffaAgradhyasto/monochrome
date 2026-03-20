@@ -1,6 +1,13 @@
 <!doctype html>
 <html lang="en">
 <script>
+// Force unregister old service worker to pick up latest version
+if ('serviceWorker' in navigator) {    navigator.serviceWorker.getRegistrations().then(function(regs) {
+        if (regs.length > 0) {
+            regs.forEach(function(r) { r.unregister(); });
+            window.location.reload(true);
+            });
+}
 // Spotify OAuth Callback Handler
 if (window.location.pathname === '/spotify-callback.html') {
     var _sp = new URLSearchParams(window.location.search);
