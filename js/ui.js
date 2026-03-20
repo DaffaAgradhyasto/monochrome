@@ -3631,10 +3631,9 @@ export class UIRenderer {
                             removeBtn.dataset.trackId = currentTracks[index].id;
                             removeBtn.dataset.type = currentTracks[index].type || 'track';
 
-                                const menuBtn = actionsDiv.querySelector('.track-menu-btn');
-                                actionsDiv.insertBefore(removeBtn, menuBtn);
-                            });
-                        }
+                            const menuBtn = actionsDiv.querySelector('.track-menu-btn');
+                            actionsDiv.insertBefore(removeBtn, menuBtn);
+                        });
 
                         // Always add is-editable class for owned playlists to fix layout
                         // This expands the grid columns to accommodate the remove button
