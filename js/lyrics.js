@@ -432,10 +432,14 @@ export class LyricsManager {
                 .map((wordElement) => wordElement.textContent?.replace(/\s+/g, ' ').trim() || '')
                 .filter(Boolean);
 
-            const noSpaceLine = words.join('');
-            const spacedLine = words.join(' ');
             const fallbackLine = mainVocalContainer.textContent?.replace(/\s+/g, ' ').trim() || '';
-            const originalLine = words.length > 0 ? (containsAsianText(noSpaceLine) ? noSpaceLine : spacedLine) : fallbackLine;
+            let originalLine = fallbackLine;
+
+            if (words.length > 0) {
+                const noSpaceLine = words.join('');
+                const spacedLine = words.join(' ');
+                originalLine = containsAsianText(noSpaceLine) ? noSpaceLine : spacedLine;
+            }
 
             if (!originalLine) {
                 continue;
