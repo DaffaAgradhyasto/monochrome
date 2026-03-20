@@ -37,6 +37,7 @@ const usernameError = document.getElementById('username-error');
 
 let currentFavoriteAlbums = [];
 const api = new MusicAPI(apiSettings);
+const APPWRITE_PROJECT_ID = '69ba589c0035145a5327';
 const APPWRITE_BUCKET_ID = '69bd00090010bb60c722';
 const storage = new Storage(client);
 
@@ -63,10 +64,15 @@ function normalizeImageUrl(url) {
 }
 
 async function uploadImage(file) {
-    const fileId = ID.unique();
-    const uploaded = await storage.createFile(APPWRITE_BUCKET_ID, fileId, file);
-    const url = `https://fra.cloud.appwrite.io/v1/storage/buckets/${APPWRITE_BUCKET_ID}/files/${uploaded.$id}/view?project=69ba589c0035145a5327`;
-    return url;
+    try {
+        const fileId = ID.unique();
+        const uploaded = await storage.createFile(APPWRITE_BUCKET_ID, fileId, file);
+        const url = `https://fra.cloud.appwrite.io/v1/storage/buckets/${APPWRITE_BUCKET_ID}/files/${uploaded.$id}/view?project=${APPWRITE_PROJECT_ID}`;
+        return url;
+    } catch (error) {
+        console.error('Upload error:', error);
+        throw new Error('Image upload failed');
+    }
 }
 
 function setupImageUploadControl(idPrefix) {
