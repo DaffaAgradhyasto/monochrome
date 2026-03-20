@@ -106,7 +106,7 @@ const syncManager = {
             favorite_albums: favoriteAlbums,
         };
 
-        return { library, history, userPlaylists, userFolders, profile };
+        const userSettings = this.safeParseInternal(record.user_settings, 'user_settings', {}); return { library, history, userPlaylists, userFolders, profile, userSettings };
     },
 
     async _updateUserJSON(uid, field, data) {
@@ -365,7 +365,7 @@ const syncManager = {
             };
         }
 
-        await this._updateUserJSON(user.$id, 'user_folders', userFolders);
+        await this._updateUserJSON(user.$id, 'user_folders', userFolders); }, async syncSettings(settings) { const user = authManager.user; if (!user) return; try { const record = await this._getUserRecord(user.$id); if (!record) return; await this._updateUserJSON(user.$id, 'user_settings', settings); console.log('[PocketBase] Settings synced successfully'); } catch (err) { console.error('[PocketBase] Failed to sync settings:', err); }
     },
 
     async getPublicPlaylist(uuid) {
@@ -718,7 +718,7 @@ const syncManager = {
                         user_folders: Object.values(userFolders).filter((f) => f && typeof f === 'object'),
                     };
 
-                    await database.importData(convertedData);
+                    await database.importData(convertedData); if (cloudData.userSettings && typeof cloudData.userSettings === 'object') { Object.entries(cloudData.userSettings).forEach(([key, value]) => { try { localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value)); } catch(e) { console.error('[PocketBase] Failed to restore setting:', key, e); } }); }
                     await new Promise((resolve) => setTimeout(resolve, 300));
 
                     window.dispatchEvent(new CustomEvent('library-changed'));
