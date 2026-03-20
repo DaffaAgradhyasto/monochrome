@@ -1,5 +1,35 @@
 <!doctype html>
 <html lang="en">
+    <script>
+// Spotify OAuth Callback Handler - runs before app loads
+(function() {
+    if (window.location.pathname === '/spotify-callback.html') {
+        var params = new URLSearchParams(window.location.search);
+        var code = params.get('code');
+        var error = params.get('error');
+        if (error) {
+            window.location.replace('/?spotify_error=' + encodeURIComponent(error));
+            return;
+        }
+        if (code) {
+            var verifier = localStorage.getItem('spotify_pkce_verifier');
+            if (!verifier) {
+                window.location.replace('/?spotify_error=no_verifier');
+                return;
+            }
+            var body = new URLSearchParams({
+                client_id: 'dea6cdc74cd342b3ada70ad8d668fd0b',
+                grant_type: 'authorization_code',
+                code: code,
+                redirect_uri: window.location.origin + '/spotify-callback.html',
+                code_verifier: verifier
+            });
+            document.write('<html><head><style>*{margin:0;padding:0;box-sizing:border-box}body{background:#000;color:#fff;font-family:Inter,system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:1.5rem}.logo{font-size:2rem;font-weight:700}.logo span{color:#1DB954}.spinner{width:40px;height:40px;border:3px solid #333;border-top-color:#1DB954;border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}.status{color:#aaa;font-size:1rem}</style></head><body><div class="logo">Mono<span>chrome</span></div><div class="spinner"></div><p class="status">Connecting Spotify...</p><script>(async function(){try{var r=await fetch("https://accounts.spotify.com/api/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"' + body.toString() + '"});if(!r.ok){var e=await r.text();throw new Error(e);}var d=await r.json();localStorage.setItem("spotify_user_access_token",d.access_token);localStorage.setItem("spotify_user_token_expiry",String(Date.now()+d.expires_in*1000));if(d.refresh_token)localStorage.setItem("spotify_user_refresh_token",d.refresh_token);localStorage.removeItem("spotify_pkce_verifier");try{var pr=await fetch("https://api.spotify.com/v1/me",{headers:{Authorization:"Bearer "+d.access_token}});if(pr.ok){var p=await pr.json();localStorage.setItem("spotify_user_profile",JSON.stringify({id:p.id,displayName:p.display_name,avatar:p.images?.[0]?.url||null,country:p.country}));}}catch(ex){}document.querySelector(".status").textContent="Connected! Redirecting...";document.querySelector(".status").style.color="#1DB954";document.querySelector(".spinner").style.display="none";setTimeout(()=>{window.location.href="/"},1500);}catch(ex){document.querySelector(".status").textContent="Failed: "+ex.message;document.querySelector(".status").style.color="#ff4444";document.querySelector(".spinner").style.display="none";}})();<\/script></body></html>');
+            document.close();
+        }
+    }
+})();
+</script>
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
