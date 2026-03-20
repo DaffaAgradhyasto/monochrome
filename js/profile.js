@@ -1,5 +1,7 @@
 import { syncManager } from './accounts/pocketbase.js';
 import { authManager } from './accounts/auth.js';
+import { Storage, ID } from 'appwrite';
+import { client } from './accounts/config.js';
 import { navigate } from './router.js';
 import { MusicAPI } from './music-api.js';
 import { apiSettings } from './storage.js';
@@ -35,6 +37,8 @@ const usernameError = document.getElementById('username-error');
 
 let currentFavoriteAlbums = [];
 const api = new MusicAPI(apiSettings);
+const APPWRITE_BUCKET_ID = '69bd00090010bb60c722';
+const storage = new Storage(client);
 
 function normalizeImageUrl(url) {
     const raw = (url || '').trim();
@@ -59,19 +63,10 @@ function normalizeImageUrl(url) {
 }
 
 async function uploadImage(file) {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-        const response = await fetch('/upload', { method: 'POST', body: formData });
-        if (!response.ok) throw new Error(`Upload failed: ${response.status}`);
-        const data = await response.json();
-        if (!data.success) throw new Error(data.error || 'Upload failed');
-        return normalizeImageUrl(data.url);
-    } catch (error) {
-        console.error('Upload error:', error);
-        throw error;
-    }
+    const fileId = ID.unique();
+    const uploaded = await storage.createFile(APPWRITE_BUCKET_ID, fileId, file);
+    const url = `https://fra.cloud.appwrite.io/v1/storage/buckets/${APPWRITE_BUCKET_ID}/files/${uploaded.$id}/view?project=69ba589c0035145a5327`;
+    return url;
 }
 
 function setupImageUploadControl(idPrefix) {
