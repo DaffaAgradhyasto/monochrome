@@ -428,7 +428,11 @@ export class LyricsManager {
 
             const wordElements = Array.from(mainVocalContainer.querySelectorAll('.lyrics-word'));
             const words = wordElements
-                .map((wordElement) => wordElement.textContent?.replace(/\s+/g, ' ').trim() || '')
+                .map(
+                    (wordElement) =>
+                        (wordElement.dataset.originalText || wordElement.textContent)?.replace(/\s+/g, ' ').trim() ||
+                        ''
+                )
                 .filter(Boolean);
 
             const fallbackLine = mainVocalContainer.textContent?.replace(/\s+/g, ' ').trim() || '';
@@ -500,13 +504,6 @@ export class LyricsManager {
         }
 
         this.isTranslateMode = !this.isTranslateMode;
-
-        if (this.isTranslateMode) {
-            if (this.isRomajiMode) {
-                this.isRomajiMode = false;
-                this.setRomajiMode(false);
-            }
-        }
 
         try {
             localStorage.setItem('lyricsTranslateMode', this.isTranslateMode ? 'true' : 'false');
@@ -785,6 +782,7 @@ export class LyricsManager {
 
             // Check if contains Japanese - convert if we find Japanese
             if (this.containsJapanese(originalText)) {
+                textNode.parentElement.dataset.originalText = originalText;
                 const romajiText = await this.convertToRomaji(originalText);
 
                 // Only update if conversion produced different text
@@ -819,11 +817,6 @@ export class LyricsManager {
 
         if (amLyricsElement) {
             if (this.isRomajiMode) {
-                if (this.isTranslateMode) {
-                    this.isTranslateMode = false;
-                    localStorage.setItem('lyricsTranslateMode', 'false');
-                    this.restoreTranslatedLyricsContent(amLyricsElement);
-                }
                 // Turning ON: Setup observer and convert immediately
                 this.setupLyricsObserver(amLyricsElement);
                 await this.convertLyricsContent(amLyricsElement);
