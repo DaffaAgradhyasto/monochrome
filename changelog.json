@@ -1,0 +1,37 @@
+{
+  "versions": [
+    {
+      "version": "2.5.0",
+      "date": "2026-03-20",
+      "title": "Lyrics Upgrade & Spotify Integration",
+      "highlights": [
+        {"icon": "🎤", "category": "Lyrics", "text": "Real-time synced translation highlighting"},
+        {"icon": "🎵", "category": "Spotify", "text": "Spotify API integration for personalized recommendations"},
+        {"icon": "⬇️", "category": "Download", "text": "Batch album downloads"},
+        {"icon": "🎛️", "category": "Audio", "text": "DASH streaming support"},
+        {"icon": "🛡️", "category": "Admin", "text": "Role-based access control & admin dashboard"}
+      ],
+      "changes": {
+        "new": [
+          "Advanced Sleep Timer",
+          "Mood Playlist Generator",
+          "Audio Crossfade Engine",
+          "Track Bookmarks",
+          "Recently Played History",
+          "Playlist Analyzer",
+          "User Role System",
+          "Admin Dashboard",
+          "What's New Dialog"
+        ],
+        "improved": [
+          "Lyrics highlighting sync",
+          "Spotify seed track resolution"
+        ],
+        "fixed": [
+          "Translation not mixing with romaji",
+          "Spotify ID resolution"
+        ]
+      }
+    }
+  ]
+}

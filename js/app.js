@@ -30,6 +30,7 @@ import { openEditProfile } from './profile.js';
 import { ThemeStore } from './themeStore.js';
 import './commandPalette.js';
 import './accounts/settings-sync.js';
+import './whats-new.js';
 
 import { initTracker } from './tracker.js';
 import {
