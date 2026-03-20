@@ -380,7 +380,7 @@ export class LyricsManager {
     async translateText(text, targetLang) {
         if (!text || !targetLang) return text;
 
-        const cacheKey = `${text}_${targetLang}`;
+        const cacheKey = JSON.stringify([text, targetLang]);
         if (this.translateCache.has(cacheKey)) {
             return this.translateCache.get(cacheKey);
         }
@@ -448,7 +448,7 @@ export class LyricsManager {
 
             const originalText = this.originalTextsMap.get(textNode) || currentText;
             const translatedText = await this.translateText(originalText, this.translateLanguage);
-            if (translatedText && translatedText !== currentText) {
+            if (translatedText && translatedText !== originalText) {
                 textNode.textContent = translatedText;
             }
         }
@@ -475,7 +475,6 @@ export class LyricsManager {
             if (typeof originalText === 'string' && textNode.textContent !== originalText) {
                 textNode.textContent = originalText;
             }
-            this.originalTextsMap.delete(textNode);
         }
     }
 
@@ -954,7 +953,7 @@ export function openLyricsPanel(track, audioPlayer, lyricsManager, forceOpen = f
             { code: 'id', name: 'Indonesian' },
             { code: 'ja', name: 'Japanese' },
             { code: 'ko', name: 'Korean' },
-            { code: 'zh-CN', name: 'Chinese' },
+            { code: 'zh-CN', name: 'Chinese (Simplified)' },
             { code: 'es', name: 'Spanish' },
             { code: 'fr', name: 'French' },
             { code: 'de', name: 'German' },
@@ -1097,6 +1096,7 @@ export function openLyricsPanel(track, audioPlayer, lyricsManager, forceOpen = f
                     manager.setTranslateLanguage(selectedLang);
                     const amLyrics = sidePanelManager.panel.querySelector('am-lyrics');
                     if (amLyrics && manager.isTranslateMode) {
+                        manager.restoreTranslatedLyricsContent(amLyrics);
                         await manager.translateLyricsContent(amLyrics);
                     }
                 });
@@ -1303,6 +1303,7 @@ async function renderLyricsComponent(container, track, audioPlayer, lyricsManage
         }
         if (lyricsManager.isTranslateMode) {
             await lyricsManager.translateLyricsContent(amLyrics);
+            // One retry after 500ms in case more lyrics load asynchronously
             setTimeout(() => lyricsManager.translateLyricsContent(amLyrics), 500);
         }
 
