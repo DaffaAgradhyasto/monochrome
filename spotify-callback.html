@@ -19,57 +19,30 @@
     }
     .logo { font-size: 2rem; font-weight: 700; letter-spacing: -0.05em; }
     .logo span { color: #1DB954; }
-    .status {
-      font-size: 1rem;
-      color: #aaa;
-      text-align: center;
-      max-width: 400px;
-      line-height: 1.5;
-    }
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 3px solid #333;
-      border-top-color: #1DB954;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
+    .status { font-size: 1rem; color: #aaa; text-align: center; max-width: 400px; line-height: 1.5; }
+    .spinner { width: 40px; height: 40px; border: 3px solid #333; border-top-color: #1DB954; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .error { color: #ff4444; }
     .success { color: #1DB954; }
-    .btn {
-      display: inline-block;
-      padding: 0.75rem 1.5rem;
-      background: #1DB954;
-      color: #000;
-      font-weight: 600;
-      border-radius: 100px;
-      text-decoration: none;
-      font-size: 0.9rem;
-      margin-top: 0.5rem;
-    }
+    .btn { display: inline-block; padding: 0.75rem 1.5rem; background: #1DB954; color: #000; font-weight: 600; border-radius: 100px; text-decoration: none; font-size: 0.9rem; margin-top: 0.5rem; }
   </style>
 </head>
 <body>
   <div class="logo">Mono<span>chrome</span></div>
   <div class="spinner" id="spinner"></div>
   <p class="status" id="status">Connecting your Spotify account...</p>
-
-  <script type="module">
-    import { spotifyAuth } from '/js/spotify-auth.js';
-
-    const statusEl = document.getElementById('status');
-    const spinnerEl = document.getElementById('spinner');
-
-    async function handleCallback() {
+  <script>
+    (async function() {
       const params = new URLSearchParams(window.location.search);
       const code = params.get('code');
       const error = params.get('error');
+      const statusEl = document.getElementById('status');
+      const spinnerEl = document.getElementById('spinner');
 
       if (error) {
         spinnerEl.style.display = 'none';
         statusEl.className = 'status error';
-        statusEl.innerHTML = `Spotify login was cancelled or failed.<br><small>${error}</small><br><a class="btn" href="/">Go Back</a>`;
+        statusEl.innerHTML = `Spotify login failed.<br><small>${error}</small><br><a class="btn" href="/">Go Back</a>`;
         return;
       }
 
@@ -80,29 +53,70 @@
         return;
       }
 
+      // Save code to sessionStorage so index.html can pick it up
+      sessionStorage.setItem('spotify_oauth_code', code);
+
+      // Try to exchange token directly here
       try {
-        await spotifyAuth.handleCallback(code);
-        const profile = spotifyAuth.getUserProfile();
+        const verifier = localStorage.getItem('spotify_pkce_verifier');
+        if (!verifier) throw new Error('No PKCE verifier found');
+
+        const res = await fetch('https://accounts.spotify.com/api/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            client_id: 'dea6cdc74cd342b3ada70ad8d668fd0b',
+            grant_type: 'authorization_code',
+            code: code,
+            redirect_uri: window.location.origin + '/spotify-callback.html',
+            code_verifier: verifier,
+          }),
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(errText);
+        }
+
+        const data = await res.json();
+
+        // Save tokens
+        localStorage.setItem('spotify_user_access_token', data.access_token);
+        localStorage.setItem('spotify_user_token_expiry', String(Date.now() + data.expires_in * 1000));
+        if (data.refresh_token) localStorage.setItem('spotify_user_refresh_token', data.refresh_token);
+        localStorage.removeItem('spotify_pkce_verifier');
+        sessionStorage.removeItem('spotify_oauth_code');
+
+        // Fetch profile
+        try {
+          const profileRes = await fetch('https://api.spotify.com/v1/me', {
+            headers: { Authorization: `Bearer ${data.access_token}` },
+          });
+          if (profileRes.ok) {
+            const profile = await profileRes.json();
+            localStorage.setItem('spotify_user_profile', JSON.stringify({
+              id: profile.id,
+              displayName: profile.display_name,
+              avatar: profile.images?.[0]?.url || null,
+              country: profile.country,
+            }));
+          }
+        } catch(e) {}
 
         spinnerEl.style.display = 'none';
         statusEl.className = 'status success';
-        statusEl.innerHTML = `
-          Connected as <strong>${profile?.displayName || 'Spotify User'}</strong>!<br>
-          <small>Your Spotify history will now power personalized mixes.</small><br>
-          <a class="btn" href="/">Back to Monochrome</a>
-        `;
+        const profile = JSON.parse(localStorage.getItem('spotify_user_profile') || '{}');
+        statusEl.innerHTML = `Connected as <strong>${profile.displayName || 'Spotify User'}</strong>!<br><small>Redirecting back to Monochrome...</small>`;
 
-        // Auto-redirect after 2 seconds
-        setTimeout(() => { window.location.href = '/'; }, 2000);
-      } catch (e) {
+        setTimeout(() => { window.location.href = '/'; }, 1500);
+
+      } catch(e) {
         spinnerEl.style.display = 'none';
         statusEl.className = 'status error';
         statusEl.innerHTML = `Failed to connect Spotify.<br><small>${e.message}</small><br><a class="btn" href="/">Try Again</a>`;
         console.error('Spotify callback error:', e);
       }
-    }
-
-    handleCallback();
+    })();
   </script>
 </body>
 </html>
