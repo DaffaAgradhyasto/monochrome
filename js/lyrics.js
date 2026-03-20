@@ -167,7 +167,6 @@ export class LyricsManager {
         this.isTranslateMode = false;
         this.translateLanguage = localStorage.getItem('lyricsTranslateLang') || 'en';
         this.translateCache = new Map();
-        this.originalTextsMap = new WeakMap();
     }
 
     // Get timing offset for current track
@@ -436,9 +435,8 @@ export class LyricsManager {
             let originalLine = fallbackLine;
 
             if (words.length > 0) {
-                const noSpaceLine = words.join('');
-                const spacedLine = words.join(' ');
-                originalLine = containsAsianText(noSpaceLine) ? noSpaceLine : spacedLine;
+                const hasAsianWords = words.some((word) => containsAsianText(word));
+                originalLine = hasAsianWords ? words.join('') : words.join(' ');
             }
 
             if (!originalLine) {
@@ -469,25 +467,6 @@ export class LyricsManager {
 
         const rootToTraverse = amLyricsElement.shadowRoot || amLyricsElement;
         rootToTraverse.querySelectorAll('.monochrome-translated-line').forEach((element) => element.remove());
-
-        const textNodes = [];
-        const walker = document.createTreeWalker(rootToTraverse, NodeFilter.SHOW_TEXT, null, false);
-
-        let node;
-        while ((node = walker.nextNode())) {
-            textNodes.push(node);
-        }
-
-        for (const textNode of textNodes) {
-            if (!textNode.parentElement) {
-                continue;
-            }
-
-            const originalText = this.originalTextsMap.get(textNode);
-            if (typeof originalText === 'string' && textNode.textContent !== originalText) {
-                textNode.textContent = originalText;
-            }
-        }
     }
 
     setTranslateLanguage(lang) {
