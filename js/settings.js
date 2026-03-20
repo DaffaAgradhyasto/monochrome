@@ -3728,5 +3728,30 @@ export function initSpotifySettings() {
         });
     }
 
+    // Handle OAuth callback from sessionStorage (service worker redirect)
+    const pendingCode = sessionStorage.getItem('spotify_cb_code');
+    const pendingError = sessionStorage.getItem('spotify_cb_error');
+    if (pendingError) {
+        sessionStorage.removeItem('spotify_cb_error');
+        console.warn('Spotify login failed:', pendingError);
+    } else if (pendingCode) {
+        sessionStorage.removeItem('spotify_cb_code');
+        import('./spotify-auth.js').then(({ spotifyAuth }) => {
+            spotifyAuth.handleCallback(pendingCode).then(() => {
+                updateSpotifyUI();
+                // Show success notification
+                const btn = document.getElementById('spotify-connect-btn');
+                if (btn) {
+                    const orig = btn.textContent;
+                    btn.textContent = 'Connected!';
+                    btn.style.background = '#1DB954';
+                    setTimeout(() => { btn.textContent = orig; btn.style.background = ''; }, 3000);
+                }
+            }).catch(e => {
+                console.error('Spotify token exchange failed:', e);
+            });
+        });
+    }
+
     updateSpotifyUI();
 }
