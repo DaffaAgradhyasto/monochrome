@@ -430,8 +430,9 @@ export class LyricsManager {
             const words = wordElements
                 .map(
                     (wordElement) =>
-                        (wordElement.dataset.originalText || wordElement.textContent)?.replace(/\s+/g, ' ').trim() ||
-                        ''
+                        (wordElement.dataset.originalText || wordElement.textContent || '')
+                            .replace(/\s+/g, ' ')
+                            .trim()
                 )
                 .filter(Boolean);
 
@@ -752,12 +753,13 @@ export class LyricsManager {
 
         // Convert Japanese text to Romaji (using async/await for Kuroshiro)
         for (const textNode of textNodes) {
-            if (!textNode.parentElement) {
+            const parentElement = textNode.parentElement;
+            if (!parentElement) {
                 continue;
             }
 
-            const parentTag = textNode.parentElement.tagName?.toLowerCase();
-            const parentClass = String(textNode.parentElement.className || '');
+            const parentTag = parentElement.tagName?.toLowerCase();
+            const parentClass = String(parentElement.className || '');
 
             // Skip elements that shouldn't be converted
             const skipTags = ['script', 'style', 'code', 'input', 'textarea', 'time'];
@@ -782,7 +784,7 @@ export class LyricsManager {
 
             // Check if contains Japanese - convert if we find Japanese
             if (this.containsJapanese(originalText)) {
-                textNode.parentElement.dataset.originalText = originalText;
+                parentElement.dataset.originalText = originalText;
                 const romajiText = await this.convertToRomaji(originalText);
 
                 // Only update if conversion produced different text
