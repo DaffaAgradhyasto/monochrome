@@ -428,12 +428,10 @@ export class LyricsManager {
 
             const wordElements = Array.from(mainVocalContainer.querySelectorAll('.lyrics-word'));
             const words = wordElements
-                .map(
-                    (wordElement) =>
-                        (wordElement.dataset.originalText || wordElement.textContent || '')
-                            .replace(/\s+/g, ' ')
-                            .trim()
-                )
+                .map((wordElement) => {
+                    const sourceText = wordElement.dataset.originalText || wordElement.textContent || '';
+                    return sourceText.replace(/\s+/g, ' ').trim();
+                })
                 .filter(Boolean);
 
             const fallbackLine = mainVocalContainer.textContent?.replace(/\s+/g, ' ').trim() || '';
@@ -784,7 +782,9 @@ export class LyricsManager {
 
             // Check if contains Japanese - convert if we find Japanese
             if (this.containsJapanese(originalText)) {
-                parentElement.dataset.originalText = originalText;
+                if (!parentElement.dataset.originalText) {
+                    parentElement.dataset.originalText = originalText;
+                }
                 const romajiText = await this.convertToRomaji(originalText);
 
                 // Only update if conversion produced different text
