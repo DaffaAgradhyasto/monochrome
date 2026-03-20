@@ -167,6 +167,7 @@ export class LyricsManager {
         this.isTranslateMode = false;
         this.translateLanguage = localStorage.getItem('lyricsTranslateLang') || 'en';
         this.translateCache = new Map();
+        this.translationHighlightStyleId = 'monochrome-translation-highlight-style';
     }
 
     // Get timing offset for current track
@@ -463,6 +464,8 @@ export class LyricsManager {
                 lineContainer.appendChild(translatedElement);
             }
         }
+
+        this.syncTranslationHighlightState(rootToTraverse);
     }
 
     restoreTranslatedLyricsContent(amLyricsElement) {
@@ -652,6 +655,8 @@ export class LyricsManager {
 
         // Check for shadow DOM
         const observeRoot = amLyricsElement.shadowRoot || amLyricsElement;
+        this.injectTranslationHighlightStyle(observeRoot);
+        this.syncTranslationHighlightState(observeRoot);
 
         this.romajiObserver = new MutationObserver((mutations) => {
             // Check if any relevant mutation occurred
@@ -677,6 +682,13 @@ export class LyricsManager {
                     return relevant;
                 }
                 if (mutation.type === 'characterData') return true;
+                if (
+                    mutation.type === 'attributes' &&
+                    mutation.target?.nodeType === Node.ELEMENT_NODE &&
+                    mutation.target.id?.startsWith('lyrics-line-')
+                ) {
+                    return true;
+                }
                 return false;
             });
 
@@ -698,6 +710,7 @@ export class LyricsManager {
                 if (this.isGeniusMode && this.currentGeniusData) {
                     this.applyGeniusAnnotations(amLyricsElement, this.currentGeniusData.referents);
                 }
+                this.syncTranslationHighlightState(observeRoot);
             }, 100);
         });
 
@@ -707,7 +720,8 @@ export class LyricsManager {
             childList: true,
             subtree: true,
             characterData: true, // Watch text changes to catch lyric refreshes
-            attributes: false, // Don't watch attribute changes (highlight, etc)
+            attributes: true,
+            attributeFilter: ['class', 'style', 'data-active', 'aria-current'],
         });
 
         // Initial conversion if Romaji mode is enabled - single attempt, no periodic polling
@@ -720,6 +734,55 @@ export class LyricsManager {
         if (this.isGeniusMode && this.currentGeniusData) {
             this.applyGeniusAnnotations(amLyricsElement, this.currentGeniusData.referents);
         }
+        this.syncTranslationHighlightState(observeRoot);
+    }
+
+    injectTranslationHighlightStyle(root) {
+        if (!root || !root.querySelector) return;
+        if (root.querySelector(`#${this.translationHighlightStyleId}`)) return;
+
+        const style = document.createElement('style');
+        style.id = this.translationHighlightStyleId;
+        style.textContent = `
+            [id^="lyrics-line-"].active .lyrics-translation-container,
+            [id^="lyrics-line-"].active .monochrome-translated-line,
+            [id^="lyrics-line-"].pre-active .lyrics-translation-container,
+            [id^="lyrics-line-"].pre-active .monochrome-translated-line,
+            [id^="lyrics-line-"][data-active="true"] .lyrics-translation-container,
+            [id^="lyrics-line-"][data-active="true"] .monochrome-translated-line,
+            [id^="lyrics-line-"][aria-current="true"] .lyrics-translation-container,
+            [id^="lyrics-line-"][aria-current="true"] .monochrome-translated-line,
+            [id^="lyrics-line-"].translation-active .lyrics-translation-container,
+            [id^="lyrics-line-"].translation-active .monochrome-translated-line {
+                color: var(--am-lyrics-highlight-color, var(--highlight-color, #fff));
+                opacity: 1;
+                text-shadow: 0 0 12px color-mix(in srgb, var(--am-lyrics-highlight-color, var(--highlight-color, #fff)) 30%, transparent);
+                transition: color 0.3s ease, opacity 0.3s ease, text-shadow 0.3s ease;
+            }
+        `;
+
+        root.appendChild(style);
+    }
+
+    isLyricsLineActive(lineElement) {
+        if (!lineElement) return false;
+        if (lineElement.classList.contains('active') || lineElement.classList.contains('pre-active')) return true;
+        if (lineElement.classList.contains('active-line') || lineElement.classList.contains('lyrics-activest')) return true;
+        if (lineElement.getAttribute('data-active') === 'true') return true;
+        if (lineElement.getAttribute('aria-current') === 'true') return true;
+        const inlineColor = lineElement.style?.color || '';
+        return inlineColor.length > 0;
+    }
+
+    syncTranslationHighlightState(root) {
+        if (!root || !root.querySelectorAll) return;
+        root.querySelectorAll('[id^="lyrics-line-"]').forEach((line) => {
+            const isActive = this.isLyricsLineActive(line);
+            line.classList.toggle('translation-active', isActive);
+            line.querySelectorAll('.lyrics-translation-container, .monochrome-translated-line').forEach((el) => {
+                el.classList.toggle('translation-active', isActive);
+            });
+        });
     }
 
     // Convert lyrics content to Romaji
