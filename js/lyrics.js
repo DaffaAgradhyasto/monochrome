@@ -782,8 +782,9 @@ export class LyricsManager {
 
             // Check if contains Japanese - convert if we find Japanese
             if (this.containsJapanese(originalText)) {
-                if (!parentElement.dataset.originalText) {
-                    parentElement.dataset.originalText = originalText;
+                const lyricsWordEl = parentElement.closest('.lyrics-word') || parentElement;
+                if (!lyricsWordEl.dataset.originalText) {
+                    lyricsWordEl.dataset.originalText = originalText;
                 }
                 const romajiText = await this.convertToRomaji(originalText);
 
