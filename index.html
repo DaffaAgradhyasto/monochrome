@@ -1,26 +1,6 @@
 <!doctype html>
 <html lang="en">
-<script>
-// Force unregister old service worker to pick up latest version
-if ('serviceWorker' in navigator) {    navigator.serviceWorker.getRegistrations().then(function(regs) {
-        if (regs.length > 0) {
-            regs.forEach(function(r) { r.unregister(); });
-            window.location.reload(true);
-            });
-}
-// Spotify OAuth Callback Handler
-if (window.location.pathname === '/spotify-callback.html') {
-    var _sp = new URLSearchParams(window.location.search);
-    var _code = _sp.get('code');
-    var _err = _sp.get('error');
-    if (_err) {
-        sessionStorage.setItem('spotify_cb_error', _err);
-    } else if (_code) {
-        sessionStorage.setItem('spotify_cb_code', _code);
-    }
-    window.location.replace('/');
-}
-</script>
+    <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Monochrome Music</title>
