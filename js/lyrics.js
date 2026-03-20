@@ -417,39 +417,45 @@ export class LyricsManager {
         }
 
         const rootToTraverse = amLyricsElement.shadowRoot || amLyricsElement;
-        const textNodes = [];
-        const walker = document.createTreeWalker(rootToTraverse, NodeFilter.SHOW_TEXT, null, false);
+        const lyricLines = rootToTraverse.querySelectorAll('[id^="lyrics-line-"]');
 
-        let node;
-        while ((node = walker.nextNode())) {
-            textNodes.push(node);
-        }
+        for (const lyricLine of lyricLines) {
+            const lineContainer = lyricLine.querySelector('.lyrics-line-container');
+            const mainVocalContainer = lyricLine.querySelector('.main-vocal-container');
 
-        for (const textNode of textNodes) {
-            if (!textNode.parentElement) {
+            if (!lineContainer || !mainVocalContainer) {
                 continue;
             }
 
-            const parentTag = textNode.parentElement.tagName?.toLowerCase();
-            const parentClass = String(textNode.parentElement.className || '');
-            const skipTags = ['script', 'style', 'time', 'code', 'input', 'textarea'];
-            if (skipTags.includes(parentTag) || parentClass.includes('timestamp')) {
+            const wordElements = Array.from(mainVocalContainer.querySelectorAll('.lyrics-word'));
+            const words = wordElements
+                .map((wordElement) => wordElement.textContent?.replace(/\s+/g, ' ').trim() || '')
+                .filter(Boolean);
+
+            const noSpaceLine = words.join('');
+            const spacedLine = words.join(' ');
+            const fallbackLine = mainVocalContainer.textContent?.replace(/\s+/g, ' ').trim() || '';
+            const originalLine = words.length > 0 ? (containsAsianText(noSpaceLine) ? noSpaceLine : spacedLine) : fallbackLine;
+
+            if (!originalLine) {
                 continue;
             }
 
-            const currentText = textNode.textContent;
-            if (!currentText || currentText.trim().length === 0) {
+            const translatedLine = await this.translateText(originalLine, this.translateLanguage);
+            const existingTranslatedLine = lineContainer.querySelector('.monochrome-translated-line');
+
+            if (!translatedLine || translatedLine === originalLine) {
+                existingTranslatedLine?.remove();
                 continue;
             }
 
-            if (!this.originalTextsMap.has(textNode)) {
-                this.originalTextsMap.set(textNode, currentText);
-            }
-
-            const originalText = this.originalTextsMap.get(textNode) || currentText;
-            const translatedText = await this.translateText(originalText, this.translateLanguage);
-            if (translatedText && translatedText !== originalText) {
-                textNode.textContent = translatedText;
+            if (existingTranslatedLine) {
+                existingTranslatedLine.textContent = translatedLine;
+            } else {
+                const translatedElement = document.createElement('div');
+                translatedElement.className = 'lyrics-translation-container monochrome-translated-line';
+                translatedElement.textContent = translatedLine;
+                lineContainer.appendChild(translatedElement);
             }
         }
     }
@@ -458,6 +464,8 @@ export class LyricsManager {
         if (!amLyricsElement) return;
 
         const rootToTraverse = amLyricsElement.shadowRoot || amLyricsElement;
+        rootToTraverse.querySelectorAll('.monochrome-translated-line').forEach((element) => element.remove());
+
         const textNodes = [];
         const walker = document.createTreeWalker(rootToTraverse, NodeFilter.SHOW_TEXT, null, false);
 
