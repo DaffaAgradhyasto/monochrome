@@ -10,6 +10,8 @@ const ALLOWED_ACTIONS = new Set([
     'create_playlist',
     'change_settings',
     'admin_action',
+    'session_end',
+    'visibility_hidden',
 ]);
 
 function asJsonString(input) {
@@ -75,17 +77,16 @@ class ActivityLog {
         }));
     }
 
-    bindAutoLogging() {
-        window.addEventListener('beforeunload', () => {
-            const pending = this.logActivity('anonymous', 'change_settings', { source: 'beforeunload' });
+    bindAutoLogging(userId = 'anonymous') {
+        window.addEventListener('pagehide', () => {
+            const pending = this.logActivity(userId || 'anonymous', 'session_end', { source: 'pagehide' });
             void pending;
         });
 
         document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'hidden') {
-                const pending = this.logActivity('anonymous', 'change_settings', { source: 'visibility_hidden' });
-                void pending;
-            }
+            if (document.visibilityState !== 'hidden') return;
+            const pending = this.logActivity(userId || 'anonymous', 'visibility_hidden', { source: 'visibility_hidden' });
+            void pending;
         });
     }
 }
