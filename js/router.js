@@ -21,7 +21,6 @@ export function createRouter(ui) {
         }
 
         let path = window.location.pathname;
-
         if (path.startsWith('/')) path = path.substring(1);
         if (path.endsWith('/')) path = path.substring(0, path.length - 1);
         if (path === '' || path === 'index.html') path = 'home';
@@ -109,17 +108,19 @@ export function createRouter(ui) {
                 }
                 break;
             case 'mood':
-        await ui.renderMoodPage();
-        break;
-      case 'home':
+                await ui.renderMoodPage();
+                break;
+            case 'hot-new':
+                await ui.renderHotNewPage();
+                break;
+            case 'home':
                 await ui.renderHomePage();
                 break;
             case 'donate':
                 ui.showPage('donate');
                 break;
             case 'user':
-                if 
-                    (param && param.startsWith('@') && !param.includes('/')) {
+                if (param && param.startsWith('@') && !param.includes('/')) {
                     await loadProfile(decodeURIComponent(param.slice(1)));
                 }
                 break;
