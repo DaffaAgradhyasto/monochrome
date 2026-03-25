@@ -172,7 +172,7 @@ export class Player {
         const eventsToSync = ['timeupdate', 'seeking', 'seeked', 'volumechange'];
         eventsToSync.forEach((eventName) => {
             this.video.addEventListener(eventName, (e) => {
-                if (this.currentTrack?.type === 'video') {
+                if (this.currentTrack?.type?.toLowerCase().includes('video')) {
                     if (eventName === 'timeupdate' || eventName === 'seeking' || eventName === 'seeked') {
                         try {
                             if (this.video.readyState >= 2 && (this.audio.readyState > 0 || this.audio.src)) {
@@ -494,7 +494,9 @@ export class Player {
             const isPodcast = track.isPodcast || (track.id && String(track.id).startsWith('podcast_'));
             if (track.isLocal || isTracker || isPodcast || (track.audioUrl && !track.isLocal)) continue;
             try {
-                const streamInfo = await this.api.getStreamUrl(track.id, this.quality);
+                const streamInfo = track.type?.toLowerCase().includes('video')
+                    ? await this.api.getVideoStreamUrl(track.id)
+                    : await this.api.getStreamUrl(track.id, this.quality);
 
                 if (this.preloadAbortController.signal.aborted) break;
 
@@ -672,16 +674,6 @@ export class Player {
         }
 
         // Proactively fetch more artist tracks when the last track starts playing
-        console.log('[playTrackFromQueue] Check for fetch:', {
-            radioEnabled: this.radioEnabled,
-            artistId: this.artistPopularTracksState.artistId,
-            hasMore: this.artistPopularTracksState.hasMore,
-            isFetching: this.artistPopularTracksState.isFetching,
-            currentIndex: this.currentQueueIndex,
-            queueLength: currentQueue.length,
-            isLastTrack: this.currentQueueIndex >= currentQueue.length - 1,
-        });
-
         if (
             !this.radioEnabled &&
             this.artistPopularTracksState.artistId &&
@@ -689,9 +681,7 @@ export class Player {
             !this.artistPopularTracksState.isFetching &&
             this.currentQueueIndex >= currentQueue.length - 1
         ) {
-            console.log('[playTrackFromQueue] Fetching more tracks!');
             this.fetchMoreArtistPopularTracks().then((newTracks) => {
-                console.log('[playTrackFromQueue] Got tracks:', newTracks?.length);
                 if (newTracks && newTracks.length > 0) {
                     this.addToQueue(newTracks);
                 }
@@ -709,7 +699,7 @@ export class Player {
         const trackInfo = document.querySelector('.now-playing-bar .track-info');
         const coverEl = trackInfo?.querySelector('.cover:not(#audio-player):not(#video-player)');
 
-        const isVideoTrack = track.type === 'video';
+        const isVideoTrack = track.type?.toLowerCase().includes('video');
         const activeElement = isVideoTrack ? this.video : this.audio;
         const inactiveElement = isVideoTrack ? this.audio : this.video;
         if (this.hls) {
@@ -738,6 +728,8 @@ export class Player {
         }
 
         audioContextManager.changeSource(activeElement);
+
+        document.querySelector('.fullscreen-track-info').style.display = isVideoTrack ? 'none' : '';
 
         if (isVideoTrack) {
             if (coverEl) coverEl.style.display = 'none';
@@ -857,7 +849,11 @@ export class Player {
                         const response = await fetch(streamUrl);
                         if (response.ok) {
                             const blob = await response.blob();
+                            if (this.currentObjectUrl) {
+                                URL.revokeObjectURL(this.currentObjectUrl);
+                            }
                             streamUrl = URL.createObjectURL(blob);
+                            this.currentObjectUrl = streamUrl;
                         }
                     } catch (e) {
                         console.warn('Failed to fetch tracker blob, trying direct link', e);
@@ -882,7 +878,11 @@ export class Player {
                 const played = await this.safePlay(activeElement);
                 if (!played) return;
             } else if (track.isLocal && track.file) {
+                if (this.currentObjectUrl) {
+                    URL.revokeObjectURL(this.currentObjectUrl);
+                }
                 streamUrl = URL.createObjectURL(track.file);
+                this.currentObjectUrl = streamUrl;
                 if (this.playbackSequence !== currentSequence) return;
 
                 this.currentRgValues = null; // No replaygain for local files yet
@@ -900,7 +900,7 @@ export class Player {
                 }
                 const played = await this.safePlay(activeElement);
                 if (!played) return;
-            } else if (track.type === 'video') {
+            } else if (track.type?.toLowerCase().includes('video')) {
                 if (UIRenderer.instance) {
                     const isInFullscreen =
                         document.getElementById('fullscreen-cover-overlay')?.style.display === 'flex';
@@ -1327,7 +1327,7 @@ export class Player {
     }
 
     get activeElement() {
-        return this.currentTrack?.type === 'video' ? this.video : this.audio;
+        return this.currentTrack?.type?.toLowerCase().includes('video') ? this.video : this.audio;
     }
 
     handlePlayPause() {
