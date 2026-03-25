@@ -1165,6 +1165,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     let previousTrackId = null;
     audioPlayer.addEventListener('play', async () => {
         if (!Player.instance.currentTrack) return;
+                    const currentTrackId = Player.instance.currentTrack.id;
+                    if (currentTrackId === previousTrackId) return;
+                    previousTrackId = currentTrackId;
 
         // Update UI with current track info for theme
         UIRenderer.instance.setCurrentTrack(Player.instance.currentTrack);
@@ -1174,10 +1177,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Update Media Session with new track
         Player.instance.updateMediaSession(Player.instance.currentTrack);
-
-        const currentTrackId = Player.instance.currentTrack.id;
-        if (currentTrackId === previousTrackId) return;
-        previousTrackId = currentTrackId;
 
         // Update lyrics panel if it's open
         if (sidePanelManager.isActive('lyrics')) {
