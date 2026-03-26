@@ -241,105 +241,32 @@ export class MoodPlaylistUI {
  const s = Math.floor(sec % 60);
  return `${m}:${s.toString().padStart(2, '0')}`;
  }
+
+		// Dynamic theming methods
+		_applyMoodTheme(color) {
+					if (!color) return;
+					this._currentMoodColor = color;
+					const rgb = this._hexToRgb(color);
+					if (!rgb) return;
+					const root = document.documentElement;
+					root.style.setProperty('--mood-primary-color', color);
+					root.style.setProperty('--mood-primary-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+				}
+
+		_hexToRgb(hex) {
+					const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+					return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : null;
+				}
+
+		_adjustBrightness(hex, percent) {
+					const rgb = this._hexToRgb(hex);
+					if (!rgb) return hex;
+					const r = Math.max(0, Math.min(255, rgb.r + (rgb.r * percent / 100)));
+					const g = Math.max(0, Math.min(255, rgb.g + (rgb.g * percent / 100)));
+					const b = Math.max(0, Math.min(255, rgb.b + (rgb.b * percent / 100)));
+					return `#${Math.round(r).toString(16).padStart(2, '0')}${Math.round(g).toString(16).padStart(2, '0')}${Math.round(b).toString(16).padStart(2, '0')}`;
+				}
+	}
 }
 
-	// Dynamic theming methods
-	_applyMoodTheme(color) {
-		if (!color) return;
-		
-		this._currentMoodColor = color;
-		
-		// Convert hex to RGB
-		const rgb = this._hexToRgb(color);
-		if (!rgb) return;
-		
-		// Apply CSS custom properties
-		const root = document.documentElement;
-		root.style.setProperty('--mood-primary-color', color);
-		root.style.setProperty('--mood-primary-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
-		
-		// Background gradient for page
-		const page = document.querySelector('.mood-playlist-page');
-		if (page) {
-			page.style.background = `linear-gradient(135deg, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.15) 0%, rgba(0, 0, 0, 0.9) 100%)`;
-			page.style.transition = 'background 0.5s ease';
-		}
-		
-		// Style generate button
-		const generateBtn = document.querySelector('.mood-generate-btn');
-		if (generateBtn) {
-			generateBtn.style.background = `linear-gradient(135deg, ${color} 0%, ${this._adjustBrightness(color, -20)} 100%)`;
-			generateBtn.style.borderColor = color;
-			generateBtn.style.boxShadow = `0 4px 15px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)`;
-			generateBtn.style.transition = 'all 0.3s ease';
-		}
-		
-		// Style title with mood color
-		const title = document.querySelector('.page-title');
-		if (title) {
-			title.style.color = color;
-			title.style.textShadow = `0 0 20px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.6)`;
-			title.style.transition = 'all 0.3s ease';
-		}
-		
-		// Style result title
-		const resultTitle = document.querySelector('.mood-result-title');
-		if (resultTitle) {
-			resultTitle.style.color = color;
-			resultTitle.style.textShadow = `0 0 20px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.6)`;
-		}
-		
-		// Style energy slider
-		const energySlider = document.querySelector('#mood-energy');
-		if (energySlider) {
-			energySlider.style.setProperty('--slider-color', color);
-		}
-		
-		// Style selected mood option with glow
-		const selectedOption = document.querySelector('.mood-option.selected');
-		if (selectedOption) {
-			selectedOption.style.boxShadow = `0 0 20px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.6), 0 0 40px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)`;
-			selectedOption.style.borderColor = color;
-		}
-	}
-
-	_hexToRgb(hex) {
-		const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-		return result ? {
-			r: parseInt(result[1], 16),
-			g: parseInt(result[2], 16),
-			b: parseInt(result[3], 16)
-		} : null;
-	}
-
-	_adjustBrightness(hex, percent) {
-		const rgb = this._hexToRgb(hex);
-		if (!rgb) return hex;
-		
-		const r = Math.max(0, Math.min(255, rgb.r + (rgb.r * percent / 100)));
-		const g = Math.max(0, Math.min(255, rgb.g + (rgb.g * percent / 100)));
-		const b = Math.max(0, Math.min(255, rgb.b + (rgb.b * percent / 100)));
-		
-		return `#${Math.round(r).toString(16).padStart(2, '0')}${Math.round(g).toString(16).padStart(2, '0')}${Math.round(b).toString(16).padStart(2, '0')}`;
-	}
 	
-	_hexToRgb(hex) {
-		const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-		return result ? {
-			r: parseInt(result[1], 16),
-			g: parseInt(result[2], 16),
-			b: parseInt(result[3], 16)
-		} : null;
-	}
-	
-	_adjustBrightness(hex, percent) {
-		const rgb = this._hexToRgb(hex);
-		if (!rgb) return hex;
-		
-		const r = Math.max(0, Math.min(255, rgb.r + (rgb.r * percent / 100)));
-		const g = Math.max(0, Math.min(255, rgb.g + (rgb.g * percent / 100)));
-		const b = Math.max(0, Math.min(255, rgb.b + (rgb.b * percent / 100)));
-		
-		return `#${Math.round(r).toString(16).padStart(2, '0')}${Math.round(g).toString(16).padStart(2, '0')}${Math.round(b).toString(16).padStart(2, '0')}`;
-	}
-
