@@ -814,7 +814,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             } else {
                 const nextTrack = Player.instance.getNextTrack();
-                UIRenderer.instance.showFullscreenCover(
+                UIRenderer.instance.updateFullscreenMetadata(
                     Player.instance.currentTrack,
                     nextTrack,
                     lyricsManager,
@@ -1188,12 +1188,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const fullscreenOverlay = document.getElementById('fullscreen-cover-overlay');
         if (fullscreenOverlay && getComputedStyle(fullscreenOverlay).display !== 'none') {
             const nextTrack = Player.instance.getNextTrack();
-            UIRenderer.instance.showFullscreenCover(
+            UIRenderer.instance.updateFullscreenMetadata(
                 Player.instance.currentTrack,
-                nextTrack,
-                lyricsManager,
-                Player.instance.activeElement
-            );
+                nextTrack,                
         }
 
         // DEV: Auto-open fullscreen mode if ?fullscreen=1 in URL
