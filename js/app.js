@@ -1190,7 +1190,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const nextTrack = Player.instance.getNextTrack();
             UIRenderer.instance.updateFullscreenMetadata(
                 Player.instance.currentTrack,
-                nextTrack,                
+                nextTrack,               );
         }
 
         // DEV: Auto-open fullscreen mode if ?fullscreen=1 in URL
