@@ -10,6 +10,19 @@ export class MoodPlaylistUI {
  this._currentMood = null;
  this._isGenerating = false;
  this._generatedTracks = [];
+		this._currentMoodColor = null;
+		this._moods = [
+			{ id: 'happy', emoji: '\u{1F60A}', label: 'Happy', color: '#FFD700' },
+			{ id: 'sad', emoji: '\u{1F622}', label: 'Sad', color: '#4A90D9' },
+			{ id: 'energetic', emoji: '\u26A1', label: 'Energetic', color: '#FF4500' },
+			{ id: 'chill', emoji: '\u{1F30A}', label: 'Chill', color: '#48D1CC' },
+			{ id: 'focus', emoji: '\u{1F3AF}', label: 'Focus', color: '#8A2BE2' },
+			{ id: 'romantic', emoji: '\u{1F495}', label: 'Romantic', color: '#FF69B4' },
+			{ id: 'angry', emoji: '\u{1F525}', label: 'Angry', color: '#DC143C' },
+			{ id: 'nostalgic', emoji: '\u{1F4FC}', label: 'Nostalgic', color: '#DDA0DD' },
+			{ id: 'workout', emoji: '\u{1F4AA}', label: 'Workout', color: '#FF8C00' },
+			{ id: 'sleep', emoji: '\u{1F31C}', label: 'Sleep', color: '#191970' },
+		];
  }
  renderPage(container) {
  container.innerHTML = `
@@ -57,20 +70,8 @@ export class MoodPlaylistUI {
  this._attachEvents(container);
  }
  _renderMoodOptions() {
- const moods = [
- { id: 'happy', emoji: '\u{1F60A}', label: 'Happy', color: '#FFD700' },
- { id: 'sad', emoji: '\u{1F622}', label: 'Sad', color: '#4A90D9' },
- { id: 'energetic', emoji: '\u26A1', label: 'Energetic', color: '#FF4500' },
- { id: 'chill', emoji: '\u{1F30A}', label: 'Chill', color: '#48D1CC' },
- { id: 'focus', emoji: '\u{1F3AF}', label: 'Focus', color: '#8A2BE2' },
- { id: 'romantic', emoji: '\u{1F495}', label: 'Romantic', color: '#FF69B4' },
- { id: 'angry', emoji: '\u{1F525}', label: 'Angry', color: '#DC143C' },
- { id: 'nostalgic', emoji: '\u{1F4FC}', label: 'Nostalgic', color: '#DDA0DD' },
- { id: 'workout', emoji: '\u{1F4AA}', label: 'Workout', color: '#FF8C00' },
- { id: 'sleep', emoji: '\u{1F31C}', label: 'Sleep', color: '#191970' },
- ];
- return moods.map(m => `
- <button class="mood-option" data-mood="${m.id}" style="--mood-color:${m.color}" title="${m.label}">
+ return moodsthis._.map(m => `
+ <button class="mood-option" data-mood="${m.id}" style="--mood-co data-color="${m.color}"lor:${m.color}" title="${m.label}">
  <span class="mood-emoji">${m.emoji}</span>
  <span class="mood-label">${m.label}</span>
  </button>
@@ -84,6 +85,8 @@ export class MoodPlaylistUI {
  options.forEach(opt => {
  opt.addEventListener('click', () => {
  options.forEach(o => o.classList.remove('selected'));
+				const moodColor = opt.dataset.color;
+				if (moodColor) this._applyMoodTheme(moodColor);
  opt.classList.add('selected');
  this._currentMood = opt.dataset.mood;
  generateBtn.disabled = false;
@@ -160,6 +163,9 @@ export class MoodPlaylistUI {
  const moods = ['happy', 'sad', 'energetic', 'chill', 'focus', 'romantic', 'nostalgic', 'workout'];
  const randomMood = moods[Math.floor(Math.random() * moods.length)];
  this._currentMood = randomMood;
+		// Find mood data and apply theme
+		const moodData = this._moods.find(m => m.id === randomMood);
+		if (moodData) this._applyMoodTheme(moodData.color);
  const options = container.querySelectorAll('.mood-option');
  options.forEach(o => {
  o.classList.toggle('selected', o.dataset.mood === randomMood);
@@ -236,3 +242,84 @@ export class MoodPlaylistUI {
  return `${m}:${s.toString().padStart(2, '0')}`;
  }
 }
+
+	// Dynamic theming methods
+	_applyMoodTheme(color) {
+		if (!color) return;
+		
+		this._currentMoodColor = color;
+		
+		// Convert hex to RGB
+		const rgb = this._hexToRgb(color);
+		if (!rgb) return;
+		
+		// Apply CSS custom properties
+		const root = document.documentElement;
+		root.style.setProperty('--mood-primary-color', color);
+		root.style.setProperty('--mood-primary-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+		
+		// Background gradient for page
+		const page = document.querySelector('.mood-playlist-page');
+		if (page) {
+			page.style.background = `linear-gradient(135deg, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.15) 0%, rgba(0, 0, 0, 0.9) 100%)`;
+			page.style.transition = 'background 0.5s ease';
+		}
+		
+		// Style generate button
+		const generateBtn = document.querySelector('.mood-generate-btn');
+		if (generateBtn) {
+			generateBtn.style.background = `linear-gradient(135deg, ${color} 0%, ${this._adjustBrightness(color, -20)} 100%)`;
+			generateBtn.style.borderColor = color;
+			generateBtn.style.boxShadow = `0 4px 15px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)`;
+			generateBtn.style.transition = 'all 0.3s ease';
+		}
+		
+		// Style title with mood color
+		const title = document.querySelector('.page-title');
+		if (title) {
+			title.style.color = color;
+			title.style.textShadow = `0 0 20px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.6)`;
+			title.style.transition = 'all 0.3s ease';
+		}
+		
+		// Style result title
+		const resultTitle = document.querySelector('.mood-result-title');
+		if (resultTitle) {
+			resultTitle.style.color = color;
+			resultTitle.style.textShadow = `0 0 20px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.6)`;
+		}
+		
+		// Style energy slider
+		const energySlider = document.querySelector('#mood-energy');
+		if (energySlider) {
+			energySlider.style.setProperty('--slider-color', color);
+		}
+		
+		// Style selected mood option with glow
+		const selectedOption = document.querySelector('.mood-option.selected');
+		if (selectedOption) {
+			selectedOption.style.boxShadow = `0 0 20px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.6), 0 0 40px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)`;
+			selectedOption.style.borderColor = color;
+		}
+	}
+	
+	_hexToRgb(hex) {
+		const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+		return result ? {
+			r: parseInt(result[1], 16),
+			g: parseInt(result[2], 16),
+			b: parseInt(result[3], 16)
+		} : null;
+	}
+	
+	_adjustBrightness(hex, percent) {
+		const rgb = this._hexToRgb(hex);
+		if (!rgb) return hex;
+		
+		const r = Math.max(0, Math.min(255, rgb.r + (rgb.r * percent / 100)));
+		const g = Math.max(0, Math.min(255, rgb.g + (rgb.g * percent / 100)));
+		const b = Math.max(0, Math.min(255, rgb.b + (rgb.b * percent / 100)));
+		
+		return `#${Math.round(r).toString(16).padStart(2, '0')}${Math.round(g).toString(16).padStart(2, '0')}${Math.round(b).toString(16).padStart(2, '0')}`;
+	}
+
