@@ -113,7 +113,7 @@ export class AmbientSoundscape {
     });
 
     panel.querySelector('#ambient-toggle').addEventListener('click', () => this.toggle());
-    panel.querySelector('#ambient-close').addEventListener('click', () => panel.classList.remove('visible'));
+    panel.querySelector('#ambient-close').addEventListener('click', () => panel.classList.remove('visible'));('visible'));
 
     
   // ─── Audio ─────────────────────────────────────────────────────────────────
