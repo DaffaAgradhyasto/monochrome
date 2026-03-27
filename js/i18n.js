@@ -1207,3 +1207,8 @@ export async function initI18n() {
     childList: true,
     subtree: true
   });
+
+  // Aggressive re-translation to catch dynamically loaded content
+  setInterval(() => {
+      applyTranslations();
+      }, 500);
