@@ -758,6 +758,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Restore UI state for the current track (like button, theme)
     if (Player.instance.currentTrack) {
         UIRenderer.instance.setCurrentTrack(Player.instance.currentTrack);
+    }
 
             // Initialize new feature modules (A-B Loop, Spectrum Analyzer, etc.)
     initializeNewFeatures({
@@ -766,7 +767,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         musicAPI: MusicAPI.instance,
         audioPlayer,
     });
-    }
 
     document.querySelector('.now-playing-bar').addEventListener('click', async (e) => {
         if (!e.target.closest('.cover')) return;
