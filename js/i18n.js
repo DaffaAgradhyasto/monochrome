@@ -1119,6 +1119,23 @@ function applyPhraseTranslations(root = document) {
       }
     }
 
+      // Additional pass: translate ALL text nodes in #page-settings
+  const settingsPage = root.querySelector('#page-settings');
+  if (settingsPage) {
+    const walker = document.createTreeWalker(
+      settingsPage,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      const original = node.textContent?.trim();
+      if (original && phraseMap[original]) {
+        node.textContent = node.textContent.replace(original, phraseMap[original]);
+      }
+    }
+  }
+
     // Handle attributes
     if (el.hasAttribute('title')) {
       const attrOriginal = el.dataset.i18nOriginalTitle || el.getAttribute('title');
