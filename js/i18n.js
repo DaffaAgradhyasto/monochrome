@@ -1318,5 +1318,5 @@ export async function initI18n() {
   // Aggressive re-translation to catch dynamically loaded content
   setInterval(() => {
       applyTranslations();
-        forceReplaceAllText();
+          // forceReplaceAllText();
       }, 500);
