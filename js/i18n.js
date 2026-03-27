@@ -150,30 +150,6 @@ const COMMON_PHRASES_EN = {
   'Export': 'Export',
   'Import': 'Import',
   'Reset': 'Reset'
-    'Theme': 'Theme',
-      'Choose your preferred color scheme': 'Choose your preferred color scheme',
-        'System': 'System',
-          'Black': 'Black',
-            'White': 'White',
-              'Dark': 'Dark',
-                'Ocean': 'Ocean',
-                  'Purple': 'Purple',
-                    'Forest': 'Forest',
-                      'Mocha': 'Mocha',
-                        'Machiatto': 'Machiatto',
-                          'Frappé': 'Frappé',
-                            'Latte': 'Latte',
-                              'Aether': 'Aether',
-                                'Aether Beyond': 'Aether Beyond',
-                                  'Aether Neon': 'Aether Neon',
-                                    'Custom': 'Custom',
-                                      'Community Themes': 'Community Themes',
-                                        'Browse and apply themes created by the community': 'Browse and apply themes created by the community',
-                                          'Open Theme Store': 'Open Theme Store',
-                                            'Font': 'Font',
-                                              'Choose from presets, Google Fonts, URLs, or upload your own': 'Choose from presets, Google Fonts, URLs, or upload your own',
-                                                'Preset': 'Preset',
-                                                  'Display language for the app interface': 'Display language for the app interface',
 };
 const LANGUAGE_OVERRIDES = {
   id: {
@@ -298,30 +274,6 @@ const LANGUAGE_OVERRIDES = {
     'Export': 'Ekspor',
     'Import': 'Impor',
     'Reset': 'Reset'
-        'Theme': 'Tema',
-            'Choose your preferred color scheme': 'Pilih skema warna yang Anda sukai',
-                'System': 'Sistem',
-                    'Black': 'Hitam',
-                        'White': 'Putih',
-                            'Dark': 'Gelap',
-                                'Ocean': 'Laut',
-                                    'Purple': 'Ungu',
-                                        'Forest': 'Hutan',
-                                            'Mocha': 'Mocha',
-                                                'Machiatto': 'Machiatto',
-                                                    'Frappé': 'Frappé',
-                                                        'Latte': 'Latte',
-                                                            'Aether': 'Aether',
-                                                                'Aether Beyond': 'Aether Beyond',
-                                                                    'Aether Neon': 'Aether Neon',
-                                                                        'Custom': 'Kustom',
-                                                                            'Community Themes': 'Tema Komunitas',
-                                                                                'Browse and apply themes created by the community': 'Jelajahi dan terapkan tema yang dibuat oleh komunitas',
-                                                                                    'Open Theme Store': 'Buka Toko Tema',
-                                                                                        'Font': 'Font',
-                                                                                            'Choose from presets, Google Fonts, URLs, or upload your own': 'Pilih dari preset, Google Fonts, URL, atau unggah sendiri',
-                                                                                                'Preset': 'Preset',
-                                                                                                    'Display language for the app interface': 'Bahasa tampilan untuk antarmuka aplikasi'
   },
   ja: {
     Home: 'ホーム',
@@ -1300,21 +1252,6 @@ export async function initI18n() {
   });
 
 
-  // ULTRA AGGRESSIVE innerHTML replacement
-  function forceReplaceAllText() {
-      const phraseMap = {
-            ...COMMON_PHRASES_EN,
-                ...(LANGUAGE_OVERRIDES[currentLanguage] || {})
-                  };
-
-                    // Replace text in entire page body
-                      Object.keys(phraseMap).forEach(key => {
-                            if (key !== phraseMap[key]) {
-                                    const regex = new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
-                                          document.body.innerHTML = document.body.innerHTML.replace(regex, phraseMap[key]);
-                                              }
-                                                });
-                                                }
   // Aggressive re-translation to catch dynamically loaded content
   setInterval(() => {
       applyTranslations();
