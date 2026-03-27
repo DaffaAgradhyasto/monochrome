@@ -1299,7 +1299,24 @@ export async function initI18n() {
     subtree: true
   });
 
+
+  // ULTRA AGGRESSIVE innerHTML replacement
+  function forceReplaceAllText() {
+      const phraseMap = {
+            ...COMMON_PHRASES_EN,
+                ...(LANGUAGE_OVERRIDES[currentLanguage] || {})
+                  };
+
+                    // Replace text in entire page body
+                      Object.keys(phraseMap).forEach(key => {
+                            if (key !== phraseMap[key]) {
+                                    const regex = new RegExp(key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+                                          document.body.innerHTML = document.body.innerHTML.replace(regex, phraseMap[key]);
+                                              }
+                                                });
+                                                }
   // Aggressive re-translation to catch dynamically loaded content
   setInterval(() => {
       applyTranslations();
+        forceReplaceAllText();
       }, 500);
