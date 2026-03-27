@@ -1192,3 +1192,18 @@ export async function initI18n() {
   applyTranslations();
   document.documentElement.setAttribute('lang', lang);
 }
+
+  // Watch for DOM changes and re-apply translations
+  const observer = new MutationObserver((mutations) => {
+    // Debounce to avoid excessive re-translations
+    clearTimeout(window._i18nDebounce);
+    window._i18nDebounce = setTimeout(() => {
+      applyTranslations();
+    }, 100);
+  });
+  
+  // Observe the entire document for changes
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
