@@ -151,6 +151,8 @@ const COMMON_PHRASES_EN = {
   'Import': 'Import',
   'Reset': 'Reset'
 };
+  'Theme': 'Theme',
+    'Font': 'Font',
 const LANGUAGE_OVERRIDES = {
   id: {
     Home: 'Beranda',
