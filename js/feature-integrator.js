@@ -1,12 +1,14 @@
 // js/feature-integrator.js
 // Lazy-loads and initializes all new feature modules
 // Imported from app.js after core initialization
+// FIXED: Now always initializes regardless of currentTrack state
 
 let featuresInitialized = false;
 
 /**
  * Initialize all new feature modules.
  * Call this after Player, UIRenderer, and MusicAPI are ready.
+ * IMPORTANT: This must be called unconditionally - not gated behind currentTrack check!
  * @param {object} deps - { player, uiRenderer, musicAPI, audioPlayer }
  */
 export async function initializeNewFeatures(deps) {
@@ -171,7 +173,7 @@ export async function initializeNewFeatures(deps) {
     console.warn('[Features] Failed to init Mini Player:', e);
   }
 
-  // 14. Keyboard Shortcuts
+  // 14. Keyboard Shortcuts (Extended)
   try {
     const { KeyboardShortcuts } = await import('./keyboard-shortcuts.js');
     const shortcuts = new KeyboardShortcuts(player, audioPlayer);
@@ -201,7 +203,7 @@ export async function initializeNewFeatures(deps) {
     console.warn('[Features] Failed to init 3D Visualizer:', e);
   }
 
-  // 17. Equalizer Studio (initialized but not connected to AudioContext yet - done on demand)
+  // 17. Equalizer Studio
   try {
     const { EqualizerStudio } = await import('./equalizer-studio.js');
     const eqStudio = new EqualizerStudio(audioPlayer);
@@ -253,5 +255,52 @@ export async function initializeNewFeatures(deps) {
     console.warn('[Features] Failed to init Social Profile:', e);
   }
 
-  console.log('[Features] All new features initialized successfully');
+  // 22. Podcasts
+  try {
+    const { PodcastsAPI } = await import('./podcasts-api.js');
+    const podcastsAPI = new PodcastsAPI(player);
+    window.monochromePodcasts = podcastsAPI;
+    console.log('[Features] Podcasts initialized');
+  } catch (e) {
+    console.warn('[Features] Failed to init Podcasts:', e);
+  }
+
+  // 23. Ambient Soundscape
+  try {
+    const { AmbientSoundscape } = await import('./ambient-soundscape.js');
+    const ambient = new AmbientSoundscape();
+    window.monochromeAmbientSoundscape = ambient;
+    console.log('[Features] Ambient Soundscape initialized');
+  } catch (e) {
+    console.warn('[Features] Failed to init Ambient Soundscape:', e);
+  }
+
+  // 24. Play History Timeline
+  try {
+    const { PlayHistoryTimeline } = await import('./play-history-timeline.js');
+    const timeline = new PlayHistoryTimeline();
+    window.monochromePlayHistoryTimeline = timeline;
+    console.log('[Features] Play History Timeline initialized');
+  } catch (e) {
+    console.warn('[Features] Failed to init Play History Timeline:', e);
+  }
+
+  // 25. Visualizer Overlay
+  try {
+    const { VisualizerOverlay } = await import('./visualizer-overlay.js');
+    const vizOverlay = new VisualizerOverlay(audioPlayer);
+    window.monochromeVisualizerOverlay = vizOverlay;
+    console.log('[Features] Visualizer Overlay initialized');
+  } catch (e) {
+    console.warn('[Features] Failed to init Visualizer Overlay:', e);
+  }
+
+  console.log('[Features] All new features initialized successfully (25 modules)');
+}
+
+/**
+ * Reset the initialization flag (for hot-reload / testing purposes)
+ */
+export function resetFeatureInitialization() {
+  featuresInitialized = false;
 }
