@@ -110,7 +110,7 @@ export class AmbientSoundscape {
     panel.querySelector('#ambient-master-vol').addEventListener('input', (e) => {
       const v = parseInt(e.target.value, 10) / 100;
       this.masterGain.gain.setValueAtTime(v, this.audioContext.currentTime);
-      this.saveSettings();
+      this.();
     });
 
     panel.querySelector('#ambient-toggle').addEventListener('click', () => this.toggle());
@@ -185,7 +185,6 @@ export class AmbientSoundscape {
       this._updateToggleBtn();
     }
     this.saveSettings();
-  }
 
   toggle() {
     this.enabled = !this.enabled;
