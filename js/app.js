@@ -32,6 +32,8 @@ import { db } from './db.js';
 import { showNotification } from './downloads.js';
 import { syncManager } from './accounts/pocketbase.js';
 import { authManager } from './accounts/auth.js';
+import { rbacManager } from './accounts/rbac.js';
+import { AdminDashboard } from './admin-dashboard.js';
 import { registerSW } from 'virtual:pwa-register';
 import { openEditProfile } from './profile.js';
 import { ThemeStore } from './themeStore.js';
@@ -535,6 +537,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     initializeCasting(audioPlayer, castBtn);
 
     await UIRenderer.initialize(MusicAPI.instance, Player.instance);
+
+    // Initialize Admin Dashboard
+    window.adminDashboard = new AdminDashboard(UIRenderer.instance);
+    await rbacManager.initialize();
 
     /**
      * Scans the configured local media folder and refreshes `window.localFilesCache`.
