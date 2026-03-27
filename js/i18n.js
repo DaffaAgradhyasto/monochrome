@@ -150,7 +150,7 @@ const COMMON_PHRASES_EN = {
   'Export': 'Export',
   'Import': 'Import',
   'Reset': 'Reset'
-};
+    'Theme': 'Theme',
   'Theme': 'Theme',
     'Font': 'Font',
 const LANGUAGE_OVERRIDES = {
@@ -276,6 +276,8 @@ const LANGUAGE_OVERRIDES = {
     'Export': 'Ekspor',
     'Import': 'Impor',
     'Reset': 'Reset'
+        'Theme': 'Tema',
+            'Font': 'Font'
   },
   ja: {
     Home: 'ホーム',
