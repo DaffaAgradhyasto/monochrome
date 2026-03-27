@@ -118,6 +118,12 @@ export function createRouter(ui) {
                 ui.showPage('donate');
                 break;
             case 'user':
+                      case 'admin':
+        if (window.adminDashboard) {
+          await window.adminDashboard.render();
+        }
+        break;
+
                 if 
                     (param && param.startsWith('@') && !param.includes('/')) {
                     await loadProfile(decodeURIComponent(param.slice(1)));
