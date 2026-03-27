@@ -1130,6 +1130,7 @@ function applyPhraseTranslations(root = document) {
     while (walker.nextNode()) {
       const node = walker.currentNode;
       const original = node.textContent?.trim();
+              console.log('Checking text:', original, 'Found translation:', phraseMap[original]);
       if (original && phraseMap[original]) {
         node.textContent = node.textContent.replace(original, phraseMap[original]);
       }
