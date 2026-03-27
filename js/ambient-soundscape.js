@@ -200,8 +200,6 @@ export class AmbientSoundscape {
     if (!btn) return;
     btn.textContent = this.enabled ? 'ON' : 'OFF';
     btn.classList.toggle('active', this.enabled);
-    const playerBtn = document.getElementById('ambient-open-btn');
-    if (playerBtn) playerBtn.classList.toggle('active', this.enabled);
   }
 
   // ─── Persistence (Appwrite) ────────────────────────────────────────────────
