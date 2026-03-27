@@ -39,21 +39,19 @@ export async function initializeNewFeatures(deps) {
     if (nowPlayingBar) {
       analyzer.createCanvas(nowPlayingBar);
     }
-    const connectAnalyzer = () => {
-      if (audioPlayer && !analyzer.isRunning) {
-        analyzer.connect(audioPlayer);
-        analyzer.start();
-      }
-    };
-    audioPlayer.addEventListener('play', connectAnalyzer);
-    audioPlayer.addEventListener('pause', () => analyzer.stop());
-    audioPlayer.addEventListener('ended', () => analyzer.stop());
+    
+    // Connect analyzer when audio context is available
+    if (window.audioContext && window.audioSource) {
+      analyzer.connect(window.audioContext, window.audioSource);
+      analyzer.start();
+    }
+    
+    // Store analyzer globally for future connections
     window.monochromeSpectrumAnalyzer = analyzer;
     console.log('[Features] Spectrum Analyzer initialized');
   } catch (e) {
     console.warn('[Features] Failed to init Spectrum Analyzer:', e);
   }
-
   // 3. Spatial Audio
   try {
     const { SpatialAudio } = await import('./spatial-audio.js');
