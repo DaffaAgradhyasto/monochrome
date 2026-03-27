@@ -116,19 +116,7 @@ export class AmbientSoundscape {
     panel.querySelector('#ambient-toggle').addEventListener('click', () => this.toggle());
     panel.querySelector('#ambient-close').addEventListener('click', () => panel.classList.remove('visible'));
 
-    // Player-bar button
-    const bar = document.querySelector('.now-playing-bar');
-    if (bar && !document.getElementById('ambient-open-btn')) {
-      const btn = document.createElement('button');
-      btn.id = 'ambient-open-btn';
-      btn.className = 'now-playing-btn ambient-player-btn';
-      btn.innerHTML = '🌊';
-      btn.title = 'Ambient Soundscape';
-      btn.addEventListener('click', () => panel.classList.toggle('visible'));
-      bar.appendChild(btn);
-    }
-  }
-
+    
   // ─── Audio ─────────────────────────────────────────────────────────────────
 
   _generateBuffer(type) {
