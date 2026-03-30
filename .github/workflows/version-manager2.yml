@@ -27,7 +27,6 @@ on:
 permissions:
   contents: write
   actions: write
-  workflows: write
 
 jobs:
   auto-backup:
@@ -115,15 +114,23 @@ jobs:
         run: |
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
 
+          # Simpan isi .github/workflows/ saat ini sebelum reset
+          mkdir -p /tmp/workflows_backup
+          cp -r .github/workflows/. /tmp/workflows_backup/
+
           # Reset ke target SHA
           git reset --hard ${{ env.TARGET }}
 
-          # Cek apakah ada perubahan di .github/workflows/ antara target dan current workflow files
-          # Simpan workflow files yang sedang berjalan agar tidak ter-overwrite
-          git checkout HEAD@{1} -- .github/workflows/ 2>/dev/null || true
+          # Pulihkan .github/workflows/ dari versi saat ini (sebelum reset)
+          # agar tidak memerlukan 'workflows' permission saat push
+          mkdir -p .github/workflows
+          cp -r /tmp/workflows_backup/. .github/workflows/
 
-          # Commit ulang jika ada perubahan (preserve current workflow files)
-          git diff --cached --quiet || git commit -m "Restore ke ${{ env.TARGET }} (workflow files dipertahankan)"
+          # Tambahkan perubahan workflows ke staging
+          git add .github/workflows/
+
+          # Commit jika ada perubahan di workflows (karena restore mungkin mengubahnya)
+          git diff --cached --quiet || git commit --amend --no-edit
 
           git push --force origin main
           echo "Restore berhasil ke: ${{ env.TARGET }}"
@@ -133,7 +140,7 @@ jobs:
           echo "## Restore Selesai" >> $GITHUB_STEP_SUMMARY
           echo "Target SHA: ${{ env.TARGET }}" >> $GITHUB_STEP_SUMMARY
           echo "Safety Backup: ${{ env.SAFETY }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Catatan:** File .github/workflows/ dipertahankan dari versi saat ini untuk menghindari permission error." >> $GITHUB_STEP_SUMMARY
+          echo "**Catatan:** File .github/workflows/ dipertahankan dari versi terkini agar restore berhasil." >> $GITHUB_STEP_SUMMARY
 
   delete-version:
     name: Hapus Tag Backup
