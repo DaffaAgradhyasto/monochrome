@@ -1,10 +1,10 @@
  <p align="center">
   <a href="https://monochrome-music-player.vercel.app">
-    <img src="https://github.com/DaffaAgradhyasto/monochrome/blob/main/public/assets/512.png?raw=true" alt="Monochrome Logo" width="150px">
+    <img src="https://github.com/DaffaAgradhyasto/monochrome/blob/main/public/assets/512.png?raw=true" alt="Aether Logo" width="150px">
   </a>
 </p>
 
-<h1 align="center">Monochrome</h1>
+<h1 align="center">Aether</h1>
 
 <p align="center">
   <strong>An open-source, privacy-respecting, ad-free music app.</strong>
@@ -33,19 +33,19 @@
 
 ---
 
-## What is Monochrome?
+## What is Aether?
 
-**Monochrome** is an open-source, privacy-respecting, ad-free [TIDAL](https://tidal.com) web UI, built on top of Hi-Fi. It provides a beautiful, minimalist interface for streaming high-quality music without the clutter of traditional streaming platforms.
+**Aether** is an open-source, privacy-respecting, ad-free [TIDAL](https://tidal.com) web UI, built on top of Hi-Fi. It provides a beautiful, minimalist interface for streaming high-quality music without the clutter of traditional streaming platforms.
 
 <p align="center">
   <a href="https://monochrome-music-player.vercel.app/album/90502209">
-    <img width="2559" height="1439" alt="Image of 'NASIR' By Nas On Monochrome" src="https://i.samidy.xyz/NASIR.png"  alt="Monochrome UI" width="800">
+    <img width="2559" height="1439" alt="Image of 'NASIR' By Nas On Aether" src="https://i.samidy.xyz/NASIR.png"  alt="Aether UI" width="800">
   </a>
 </p>
 
 <p align="center">
   <a href="https://monochrome-music-player.vercel.app/album/413189044">
-    <img width="2559" height="1439" alt="Image of 'Jump Out' By Osamason On Monochrome" src="https://i.samidy.xyz/jumpout.png"  alt="Monochrome UI" width="800">
+    <img width="2559" height="1439" alt="Image of 'Jump Out' By Osamason On Aether" src="https://i.samidy.xyz/jumpout.png"  alt="Aether UI" width="800">
   </a>
 </p>
 
@@ -272,7 +272,7 @@ We welcome contributions from the community! Please see our [Contributing Guide]
 </p>
 
 <p align="center">
-  Made with ❤️ by the Monochrome team
+  Made with ❤️ by the Aether team
 </p>
 
 ## Star History
