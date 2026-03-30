@@ -1,4 +1,4 @@
-name: Version Manager (Backup, Restore & Delete)
+name: Version Manager 2 (Backup, Restore & Delete)
 
 on:
   push:
