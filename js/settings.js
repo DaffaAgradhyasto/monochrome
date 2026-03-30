@@ -35,7 +35,7 @@ import {
     crossfadeSettings,
     analyticsSettings,
     modalSettings,
-        dataSaverSettings,
+    dataSaverSettings,
 } from './storage.js';
 import { switchLanguage, getCurrentLanguage, getSupportedLanguages, applyTranslations } from './i18n.js';
 import { audioContextManager, EQ_PRESETS } from './audio-context.js';
@@ -44,6 +44,7 @@ import { authManager } from './accounts/auth.js';
 import { syncManager } from './accounts/pocketbase.js';
 import { containerFormats, customFormats } from './ffmpegFormats.ts';
 import { modernSettings } from './ModernSettings.js';
+import { queueSyncManager } from './queue-sync.js';
 
 async function getButterchurnPresets(...args) {
     const butterchurnModule = await import('./visualizers/butterchurn.js');
@@ -3273,6 +3274,65 @@ export async function initializeSettings(scrobbler, player, api, ui) {
         });
     }
 
+    // Queue Sync Toggle
+    const queueSyncToggle = document.getElementById('queue-sync-toggle');
+    const queueSyncStatus = document.getElementById('queue-sync-status');
+    const queueSyncTimestamp = document.getElementById('queue-sync-timestamp');
+    const queueSyncNowBtn = document.getElementById('queue-sync-now-btn');
+
+    const updateQueueSyncUI = () => {
+        if (queueSyncToggle) {
+            queueSyncToggle.checked = queueSyncManager.isEnabled();
+        }
+        if (queueSyncStatus && queueSyncToggle) {
+            queueSyncStatus.style.display = queueSyncToggle.checked ? 'flex' : 'none';
+        }
+        if (queueSyncTimestamp) {
+            const lastSync = queueSyncManager.getLastSyncTimestamp();
+            if (lastSync) {
+                const date = new Date(lastSync);
+                queueSyncTimestamp.textContent = date.toLocaleString();
+            } else {
+                queueSyncTimestamp.textContent = 'Never';
+            }
+        }
+    };
+
+    if (queueSyncToggle) {
+        updateQueueSyncUI();
+
+        queueSyncToggle.addEventListener('change', (e) => {
+            queueSyncManager.setEnabled(e.target.checked);
+            if (e.target.checked) {
+                queueSyncManager.setupAutoSync(player);
+                queueSyncManager.syncQueue(player);
+            } else {
+                queueSyncManager.cleanup();
+            }
+            updateQueueSyncUI();
+        });
+    }
+
+    if (queueSyncNowBtn) {
+        queueSyncNowBtn.addEventListener('click', async () => {
+            if (!queueSyncManager.isEnabled()) {
+                return;
+            }
+            queueSyncNowBtn.disabled = true;
+            queueSyncNowBtn.textContent = 'Syncing...';
+            try {
+                await queueSyncManager.syncQueue(player);
+            } finally {
+                queueSyncNowBtn.disabled = false;
+                queueSyncNowBtn.textContent = 'Sync Now';
+                updateQueueSyncUI();
+            }
+        });
+    }
+
+    window.addEventListener('queue-sync-complete', updateQueueSyncUI);
+    window.addEventListener('queue-sync-error', updateQueueSyncUI);
+
     // Reset Local Data Button
     const resetLocalDataBtn = document.getElementById('reset-local-data-btn');
     if (resetLocalDataBtn) {
@@ -3375,7 +3435,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
         if (dataSaverStatusText) dataSaverStatusText.textContent = dataSaverSettings.getSavingsDescription();
     }
 
-function applyDataSaver() {
+    function applyDataSaver() {
         const enabled = dataSaverSettings.isEnabled();
         const mode = dataSaverSettings.getMode();
 
@@ -3414,9 +3474,9 @@ function applyDataSaver() {
                 document.body.classList.remove('data-saver-extreme');
             }
         } else {
-                        // Moderate or OFF: restore all features back to enabled
+            // Moderate or OFF: restore all features back to enabled
             // Moderate: still use LOW quality; OFF: restore HI_RES
-            const restoreQuality = (enabled && mode === 'moderate') ? 'LOW' : 'HI_RES_LOSSLESS';
+            const restoreQuality = enabled && mode === 'moderate' ? 'LOW' : 'HI_RES_LOSSLESS';
             player.setQuality(restoreQuality);
             localStorage.setItem('playback-quality', restoreQuality);
             const sqSetting = document.getElementById('streaming-quality-setting');
@@ -3428,19 +3488,19 @@ function applyDataSaver() {
             setFeature(dynamicColorSettings, 'setEnabled', true, 'dynamic-color-toggle');
             setFeature(analyticsSettings, 'setEnabled', true, 'analytics-toggle');
 
-            const restoreCoverSize = (enabled && mode === 'moderate') ? '160' : '300';
+            const restoreCoverSize = enabled && mode === 'moderate' ? '160' : '300';
             coverArtSizeSettings.setSize(restoreCoverSize);
             const coverSelect = document.getElementById('cover-art-size-setting');
             if (coverSelect) coverSelect.value = restoreCoverSize;
-                        if (enabled && mode === 'moderate') {
+            if (enabled && mode === 'moderate') {
                 document.body.classList.add('data-saver-active');
                 document.body.classList.remove('data-saver-extreme');
             } else {
-                document.body.classList.remove('data-saver-active', 'data-saver-extreme');             // Remove badge             const existingBadge = document.querySelector('.data-saver-badge');             if (existingBadge) existingBadge.remove();
+                document.body.classList.remove('data-saver-active', 'data-saver-extreme'); // Remove badge             const existingBadge = document.querySelector('.data-saver-badge');             if (existingBadge) existingBadge.remove();
             }
         }
 
-            // Update badge indicator
+        // Update badge indicator
         const existingBadge = document.querySelector('.data-saver-badge');
         if (enabled) {
             if (!existingBadge) {
@@ -3456,7 +3516,13 @@ function applyDataSaver() {
     }
 
     updateDataSaverUI();
-    if (dataSaverSettings.isEnabled()) { applyDataSaver(); } else { const badge = document.querySelector('.data-saver-badge'); if (badge) badge.remove(); document.body.classList.remove('data-saver-active', 'data-saver-extreme'); }
+    if (dataSaverSettings.isEnabled()) {
+        applyDataSaver();
+    } else {
+        const badge = document.querySelector('.data-saver-badge');
+        if (badge) badge.remove();
+        document.body.classList.remove('data-saver-active', 'data-saver-extreme');
+    }
 
     if (dataSaverToggle) {
         dataSaverToggle.addEventListener('change', (e) => {
@@ -3472,7 +3538,7 @@ function applyDataSaver() {
             applyDataSaver();
         });
     }
-    }
+}
 
 function initializeFontSettings() {
     const fontTypeSelect = document.getElementById('font-type-select');
