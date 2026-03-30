@@ -46,6 +46,7 @@ import {
     createTrackFromSong,
 } from './tracker.js';
 import { trackSearch, trackChangeSort } from './analytics.js';
+import { merchStoreManager } from './merch-store.js';
 import {
     SVG_PLAY,
     SVG_DOWNLOAD,
@@ -4564,6 +4565,9 @@ export class UIRenderer {
                     socialsEl.innerHTML = links.map((link) => this.createSocialLinkHTML(link)).join('');
                 }
             });
+
+            // Load Merchandise section
+            this.loadMerchSection(artist.name, artist.id);
 
             this.renderListWithTracks(tracksContainer, artist.tracks, true);
 
