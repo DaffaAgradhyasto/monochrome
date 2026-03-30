@@ -28,51 +28,9 @@ const SUPPORTED_LANGUAGES = {
   ur: 'اردو',
   fa: 'فارسی',
 };
-const COMMON_PHRASES_EN = {
-  Home: 'Home',
-  Library: 'Library',
-  Recent: 'Recent',
-  Unreleased: 'Unreleased',
-  Donate: 'Donate',
-  Settings: 'Settings',
-  About: 'About',
-  Discord: 'Discord',
-  Pinned: 'Pinned',
-  Appearance: 'Appearance',
-  Interface: 'Interface',
-  Scrobbling: 'Scrobbling',
-  Audio: 'Audio',
-  Downloads: 'Downloads',
-  Instances: 'Instances',
-  System: 'System',
-  'Search settings...': 'Search settings...',
-  'Streaming Quality': 'Streaming Quality',
-  'Quality for streaming playback': 'Quality for streaming playback',
-  'App Language': 'App Language',
-  'Display language for the app interface': 'Display language for the app interface',
-  'Hi-Res FLAC (24-bit)': 'Hi-Res FLAC (24-bit)',
-  'FLAC (Lossless)': 'FLAC (Lossless)',
-  'AAC 320kbps': 'AAC 320kbps',
-  'AAC 96kbps': 'AAC 96kbps',
-  'Create Profile': 'Create Profile',
-  'My Profile': 'My Profile',
-  'Sign Out': 'Sign Out',
-  'Connect with Google': 'Connect with Google',
-  'Connect with Email': 'Connect with Email',
-  'Edit Profile': 'Edit Profile',
-  Username: 'Username',
-  'Display Name': 'Display Name',
-  'Avatar URL': 'Avatar URL',
-  'Banner URL': 'Banner URL',
-  'About Me': 'About Me',
-  Website: 'Website',
-  'Last.fm Username': 'Last.fm Username',
-  'Save Profile': 'Save Profile',
-  Cancel: 'Cancel',
-  Upload: 'Upload',
-  'or URL': 'or URL',
-};
-const LANGUAGE_OVERRIDES = {
+
+let currentLanguage = 'en';
+let currentTranslations = {};
   id: {
     Home: 'Beranda',
     Library: 'Perpustakaan',
@@ -1164,29 +1122,32 @@ function setStoredLanguage(lang) {
 }
 
 async function loadTranslations(lang) {
-  const builtInPhrases = {
-    ...COMMON_PHRASES_EN,
-    ...(LANGUAGE_OVERRIDES[lang] || {}),
-  };
   try {
     const response = await fetch(`${LOCALE_PATH}/${lang}.json`);
     if (!response.ok) {
       throw new Error(`Failed to load locale: ${lang}`);
     }
-    const loaded = await response.json();
-    return { ...loaded, ...builtInPhrases };
+    return await response.json();
   } catch (err) {
-    return builtInPhrases;
+    console.error(`Error loading translations for ${lang}:`, err);
+    if (lang !== 'en') {
+      return loadTranslations('en');
+    }
+    return {};
   }
 }
 
-export function t(key) {
-  return currentTranslations[key] ?? key;
+export function t(key, fallback = '') {
+  if (!currentTranslations[key]) {
+    return fallback || key;
+  }
+  return currentTranslations[key];
 }
 
 export function applyTranslations(root = document) {
-  const elements = root.querySelectorAll('[data-i18n]');
-  elements.forEach((el) => {
+  // Translate elements with data-i18n attribute
+  const i18nEls = root.querySelectorAll('[data-i18n]');
+  i18nEls.forEach((el) => {
     const key = el.getAttribute('data-i18n');
     if (!key) return;
     const translation = t(key);
@@ -1195,6 +1156,7 @@ export function applyTranslations(root = document) {
     }
   });
 
+  // Translate placeholders
   const placeholderEls = root.querySelectorAll('[data-i18n-placeholder]');
   placeholderEls.forEach((el) => {
     const key = el.getAttribute('data-i18n-placeholder');
@@ -1205,6 +1167,7 @@ export function applyTranslations(root = document) {
     }
   });
 
+  // Translate titles
   const titleEls = root.querySelectorAll('[data-i18n-title]');
   titleEls.forEach((el) => {
     const key = el.getAttribute('data-i18n-title');
@@ -1215,50 +1178,14 @@ export function applyTranslations(root = document) {
     }
   });
 
-  applyPhraseTranslations(root);
-}
-
-function applyPhraseTranslations(root = document) {
-  const phraseMap = {
-    ...COMMON_PHRASES_EN,
-    ...(LANGUAGE_OVERRIDES[currentLanguage] || {}),
-  };
-  const scopedSelectors = [
-    '.sidebar-nav .nav-item span',
-    '.settings-tab',
-    '#page-settings .section-title',
-    '#page-settings .label',
-    '#page-settings .description',
-    '#page-settings button',
-    '#page-settings option',
-    '#header-account-dropdown button',
-    '#edit-profile-modal h3',
-    '#edit-profile-modal label',
-    '#edit-profile-modal button',
-    '#page-profile .section-title',
-    '#profile-edit-btn',
-    '#view-my-profile-btn',
-  ];
-  root.querySelectorAll(scopedSelectors.join(',')).forEach((el) => {
-    const original = el.dataset.i18nOriginalText || el.textContent?.trim();
-    if (!original) return;
-    if (!el.dataset.i18nOriginalText) {
-      el.dataset.i18nOriginalText = original;
-    }
-    const translated = phraseMap[el.dataset.i18nOriginalText];
-    if (translated) {
-      el.textContent = translated;
-    }
-  });
-  root.querySelectorAll('input[placeholder], textarea[placeholder]').forEach((el) => {
-    const original = el.dataset.i18nOriginalPlaceholder || el.getAttribute('placeholder');
-    if (!original) return;
-    if (!el.dataset.i18nOriginalPlaceholder) {
-      el.dataset.i18nOriginalPlaceholder = original;
-    }
-    const translated = phraseMap[el.dataset.i18nOriginalPlaceholder];
-    if (translated) {
-      el.setAttribute('placeholder', translated);
+  // Translate aria-labels
+  const ariaLabelEls = root.querySelectorAll('[data-i18n-aria]');
+  ariaLabelEls.forEach((el) => {
+    const key = el.getAttribute('data-i18n-aria');
+    if (!key) return;
+    const translation = t(key);
+    if (translation !== key) {
+      el.setAttribute('aria-label', translation);
     }
   });
 }
