@@ -666,6 +666,14 @@ export const downloadQualitySettings = {
                 this.setQuality('FFMPEG_MP3_320');
                 return 'FFMPEG_MP3_320';
             }
+
+            // Migrate legacy atmos value
+            if (stored === 'DOLBY_ATMOS') {
+                this.setQuality('HI_RES_LOSSLESS');
+                preferDolbyAtmosSettings.setEnabled(true);
+                return 'HI_RES_LOSSLESS';
+            }
+
             return stored;
         } catch {
             return 'HI_RES_LOSSLESS';
@@ -673,6 +681,21 @@ export const downloadQualitySettings = {
     },
     setQuality(quality) {
         localStorage.setItem(this.STORAGE_KEY, quality);
+    },
+};
+
+export const preferDolbyAtmosSettings = {
+    STORAGE_KEY: 'prefer-dolby-atmos',
+    isEnabled() {
+        try {
+            const stored = localStorage.getItem(this.STORAGE_KEY) || 'false';
+            return stored === 'true';
+        } catch {
+            return false;
+        }
+    },
+    setEnabled(enabled) {
+        localStorage.setItem(this.STORAGE_KEY, enabled ? 'true' : 'false');
     },
 };
 
@@ -2621,7 +2644,7 @@ export const contentBlockingSettings = {
 
     isArtistBlocked(artistId) {
         if (!artistId) return false;
-        return this.getBlockedArtists().some((a) => a.id === artistId);
+        return this.getBlockedArtists().some((a) => a.id == artistId);
     },
 
     blockArtist(artist) {
@@ -2638,7 +2661,7 @@ export const contentBlockingSettings = {
     },
 
     unblockArtist(artistId) {
-        const blocked = this.getBlockedArtists().filter((a) => a.id !== artistId);
+        const blocked = this.getBlockedArtists().filter((a) => a.id != artistId);
         this.setBlockedArtists(blocked);
     },
 
@@ -2658,13 +2681,13 @@ export const contentBlockingSettings = {
 
     isTrackBlocked(trackId) {
         if (!trackId) return false;
-        return this.getBlockedTracks().some((t) => t.id === trackId);
+        return this.getBlockedTracks().some((t) => t.id == trackId);
     },
 
     blockTrack(track) {
         if (!track || !track.id) return;
         const blocked = this.getBlockedTracks();
-        if (!blocked.some((t) => t.id === track.id)) {
+        if (!blocked.some((t) => t.id == track.id)) {
             blocked.push({
                 id: track.id,
                 title: track.title || 'Unknown Track',
@@ -2676,7 +2699,7 @@ export const contentBlockingSettings = {
     },
 
     unblockTrack(trackId) {
-        const blocked = this.getBlockedTracks().filter((t) => t.id !== trackId);
+        const blocked = this.getBlockedTracks().filter((t) => t.id != trackId);
         this.setBlockedTracks(blocked);
     },
 
@@ -2696,13 +2719,13 @@ export const contentBlockingSettings = {
 
     isAlbumBlocked(albumId) {
         if (!albumId) return false;
-        return this.getBlockedAlbums().some((a) => a.id === albumId);
+        return this.getBlockedAlbums().some((a) => a.id == albumId);
     },
 
     blockAlbum(album) {
         if (!album || !album.id) return;
         const blocked = this.getBlockedAlbums();
-        if (!blocked.some((a) => a.id === album.id)) {
+        if (!blocked.some((a) => a.id == album.id)) {
             blocked.push({
                 id: album.id,
                 title: album.title || 'Unknown Album',
@@ -2714,7 +2737,7 @@ export const contentBlockingSettings = {
     },
 
     unblockAlbum(albumId) {
-        const blocked = this.getBlockedAlbums().filter((a) => a.id !== albumId);
+        const blocked = this.getBlockedAlbums().filter((a) => a.id != albumId);
         this.setBlockedAlbums(blocked);
     },
 
