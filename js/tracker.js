@@ -3,6 +3,7 @@ import { escapeHtml, trackDataStore, formatTime } from './utils.js';
 import { navigate } from './router.js';
 import { SVG_MENU, SVG_PLAY, SVG_HEART } from './icons.js';
 import { Player } from './player.js';
+import { t } from './i18n.js';
 
 let artistsData = [];
 let artistsPopularity = new Map(); // name -> popularity score
@@ -278,10 +279,10 @@ function renderTrackerTracks(container, tracks) {
 // Create project card HTML - EXACTLY like album cards
 export function createProjectCardHTML(era, artist, sheetId, trackCount) {
     const playBtnHTML = `
-        <button class="play-btn card-play-btn" data-action="play-card" data-type="tracker-project" data-id="${encodeURIComponent(era.name)}" title="Play">
+        <button class="play-btn card-play-btn" data-action="play-card" data-type="tracker-project" data-id="${encodeURIComponent(era.name)}" title="${t('common.play')}">
             ${SVG_PLAY(20)}
         </button>
-        <button class="card-menu-btn" data-action="card-menu" data-type="tracker-project" data-id="${encodeURIComponent(era.name)}" title="Menu">
+        <button class="card-menu-btn" data-action="card-menu" data-type="tracker-project" data-id="${encodeURIComponent(era.name)}" title="${t('common.menu')}">
             ${SVG_MENU(20)}
         </button>
     `;
@@ -294,14 +295,14 @@ export function createProjectCardHTML(era, artist, sheetId, trackCount) {
                      class="card-image" 
                      loading="lazy"
                      onerror="this.src='assets/logo.svg'">
-                <button class="like-btn card-like-btn" data-action="toggle-like" data-type="tracker-project" title="Add to Liked">
+                <button class="like-btn card-like-btn" data-action="toggle-like" data-type="tracker-project" title="${t('common.addToLiked')}">
                     ${SVG_HEART(20)}
                 </button>
                 ${playBtnHTML}
             </div>
             <div class="card-info">
                 <h4 class="card-title">${escapeHtml(era.name)}</h4>
-                <p class="card-subtitle">${era.timeline || 'Unreleased'} • ${trackCount} tracks</p>
+                <p class="card-subtitle">${era.timeline || t('unreleased.projects')} • ${trackCount} ${t('unreleased.tracks')}</p>
             </div>
         </div>
     `;
@@ -316,14 +317,14 @@ export async function renderTrackerArtistPage(sheetId, container) {
     // Find artist by sheetId
     const artist = artistBySheetId.get(sheetId);
     if (!artist) {
-        container.innerHTML = '<p style="text-align: center; padding: 2rem;">Artist not found.</p>';
+        container.innerHTML = `<p style="text-align: center; padding: 2rem;">${t('unreleased.artistNotFound')}</p>`;
         return;
     }
 
     // Fetch tracker data
     const trackerData = await fetchTrackerData(sheetId);
     if (!trackerData || !trackerData.eras) {
-        container.innerHTML = '<p style="text-align: center; padding: 2rem;">Failed to load tracker data.</p>';
+        container.innerHTML = `<p style="text-align: center; padding: 2rem;">${t('unreleased.failedToLoadData')}</p>`;
         return;
     }
 
@@ -346,7 +347,7 @@ export async function renderTrackerArtistPage(sheetId, container) {
         this.src = 'assets/logo.svg';
     };
     nameEl.textContent = artist.name;
-    metaEl.innerHTML = `<span>${eras.length} unreleased projects</span>`;
+    metaEl.innerHTML = `<span>${eras.length} ${t('unreleased.projects')}</span>`;
 
     // Set up shuffle play button
     if (playBtn) {
@@ -390,7 +391,7 @@ export async function renderTrackerArtistPage(sheetId, container) {
         searchContainer.innerHTML = `
             <input type="text" 
                    id="unreleased-search-input" 
-                   placeholder="Search all unreleased songs..." 
+                   placeholder="${t('unreleased.searchPlaceholder')}" 
                    style="width: 100%; 
                           padding: 0.75rem 1rem; 
                           border-radius: var(--radius); 
@@ -494,11 +495,10 @@ export async function renderTrackerArtistPage(sheetId, container) {
         }
 
         if (matches.length === 0) {
-            resultsContainer.innerHTML =
-                '<p style="text-align: center; padding: 2rem; color: var(--muted-foreground);">No songs found.</p>';
+            resultsContainer.innerHTML = `<p style="text-align: center; padding: 2rem; color: var(--muted-foreground);">${t('unreleased.noSongsFound')}</p>`;
         } else {
             resultsContainer.innerHTML = `
-                <h3 style="padding: 0 1rem; margin-bottom: 1rem;">Search Results (${matches.length} songs)</h3>
+                <h3 style="padding: 0 1rem; margin-bottom: 1rem;">${t('unreleased.searchResults')} (${matches.length} ${t('unreleased.tracks')})</h3>
                 <div class="track-list" id="unreleased-search-tracklist"></div>
             `;
 
@@ -525,7 +525,7 @@ export async function renderTrackerArtistPage(sheetId, container) {
         }
     });
 
-    document.title = `${artist.name} - Unreleased`;
+    document.title = `${artist.name} - ${t('unreleased.title')}`;
 }
 
 // Render individual tracker project page
@@ -536,19 +536,19 @@ export async function renderTrackerProjectPage(sheetId, projectName, container, 
 
     const artist = artistBySheetId.get(sheetId);
     if (!artist) {
-        container.innerHTML = '<p style="text-align: center; padding: 2rem;">Project not found.</p>';
+        container.innerHTML = `<p style="text-align: center; padding: 2rem;">${t('unreleased.projectNotFound')}</p>`;
         return;
     }
 
     const trackerData = await fetchTrackerData(sheetId);
     if (!trackerData || !trackerData.eras) {
-        container.innerHTML = '<p style="text-align: center; padding: 2rem;">Failed to load project data.</p>';
+        container.innerHTML = `<p style="text-align: center; padding: 2rem;">${t('unreleased.failedToLoad')}</p>`;
         return;
     }
 
     const era = Object.values(trackerData.eras).find((e) => e.name === projectName);
     if (!era) {
-        container.innerHTML = '<p style="text-align: center; padding: 2rem;">Project not found.</p>';
+        container.innerHTML = `<p style="text-align: center; padding: 2rem;">${t('unreleased.projectNotFound')}</p>`;
         return;
     }
 
@@ -588,12 +588,12 @@ export async function renderTrackerProjectPage(sheetId, projectName, container, 
     };
 
     titleEl.textContent = era.name;
-    metaEl.innerHTML = `${era.timeline || 'Unreleased'} • ${eraTracks.length} tracks • ${availableCount} available`;
+    metaEl.innerHTML = `${era.timeline || t('unreleased.projects')} • ${eraTracks.length} ${t('unreleased.tracks')} • ${availableCount} ${t('unreleased.available')}`;
     prodEl.innerHTML = `By <a href="/unreleased/${sheetId}">${artist.name}</a>`;
 
     // Setup buttons
     if (playBtn) {
-        playBtn.innerHTML = `${SVG_PLAY(20)}<span>Play Project</span>`;
+        playBtn.innerHTML = `${SVG_PLAY(20)}<span>${t('unreleased.playProject')}</span>`;
         playBtn.onclick = () => {
             const availableTracks = eraTracks.filter((t) => !t.unavailable);
             if (availableTracks.length > 0) {
@@ -615,7 +615,7 @@ export async function renderTrackerProjectPage(sheetId, projectName, container, 
     }
 
     if (downloadBtn) {
-        downloadBtn.innerHTML = `<span>Download</span>`;
+        downloadBtn.innerHTML = `<span>${t('common.download')}</span>`;
         downloadBtn.onclick = () => {
             alert('Project download coming soon! You can download individual tracks from the menu.');
         };
@@ -666,7 +666,7 @@ export async function renderTrackerProjectPage(sheetId, projectName, container, 
                 .join('');
 
             if (moreAlbumsTitle) {
-                moreAlbumsTitle.textContent = `More unreleased from ${artist.name}`;
+                moreAlbumsTitle.textContent = `${t('unreleased.moreFrom')} ${artist.name}`;
             }
             moreAlbumsSection.style.display = 'block';
 
@@ -728,21 +728,21 @@ export async function renderTrackerProjectPage(sheetId, projectName, container, 
 // Render the unreleased page with all artists
 export async function renderUnreleasedPage(container) {
     container.innerHTML = `
-        <h2 class="section-title">Unreleased Music</h2>
+        <h2 class="section-title">${t('unreleased.title')}</h2>
         <p style="color: var(--muted-foreground); margin-bottom: 1.5rem; font-size: 0.9rem;">
-            Unreleased Songs & Info Provided By <a href="https://artistgrid.cx" target="_blank" style="text-decoration: underline;">ArtistGrid</a>. Consider Donating to Them.
+            ${t('unreleased.credit')}
         </p>
         <div style="margin-bottom: 1.5rem;">
             <input 
                 type="text" 
                 id="unreleased-search-input" 
-                placeholder="Search artists..." 
+                placeholder="${t('unreleased.searchArtistsPlaceholder')}" 
                 style="width: 100%; max-width: 400px; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid var(--border); background: var(--background); color: var(--foreground); font-size: 0.95rem;"
             />
         </div>
         <div id="unreleased-artists-grid" class="card-grid"></div>
         <div id="unreleased-no-results" style="display: none; text-align: center; padding: 2rem; color: var(--muted-foreground);">
-            No artists found matching your search.
+            ${t('unreleased.noResults')}
         </div>
     `;
 
@@ -781,7 +781,7 @@ export async function renderUnreleasedPage(container) {
             </div>
             <div class="card-info">
                 <h4 class="card-title">${artist.name}</h4>
-                <p class="card-subtitle">Unreleased Music</p>
+                <p class="card-subtitle">${t('unreleased.title')}</p>
             </div>
         `;
 
@@ -794,8 +794,7 @@ export async function renderUnreleasedPage(container) {
     });
 
     if (artistsData.length === 0) {
-        gridContainer.innerHTML =
-            '<p style="text-align: center; color: var(--muted-foreground);">No unreleased music data available.</p>';
+        gridContainer.innerHTML = `<p style="text-align: center; color: var(--muted-foreground);">${t('unreleased.noData')}</p>`;
     }
 
     // Setup search functionality
@@ -827,7 +826,7 @@ export async function renderTrackerTrackPage(trackId, container, _ui) {
     // Parse track ID: tracker-{sheetId}-{eraName}-{index}
     const parts = trackId.split('-');
     if (parts.length < 4) {
-        container.innerHTML = '<p style="text-align: center; padding: 2rem;">Invalid track ID.</p>';
+        container.innerHTML = `<p style="text-align: center; padding: 2rem;">${t('unreleased.invalidTrackId')}</p>`;
         return;
     }
 
@@ -842,19 +841,19 @@ export async function renderTrackerTrackPage(trackId, container, _ui) {
 
     const artist = artistBySheetId.get(sheetId);
     if (!artist) {
-        container.innerHTML = '<p style="text-align: center; padding: 2rem;">Artist not found.</p>';
+        container.innerHTML = `<p style="text-align: center; padding: 2rem;">${t('unreleased.artistNotFound')}</p>`;
         return;
     }
 
     const trackerData = await fetchTrackerData(sheetId);
     if (!trackerData || !trackerData.eras) {
-        container.innerHTML = '<p style="text-align: center; padding: 2rem;">Failed to load track data.</p>';
+        container.innerHTML = `<p style="text-align: center; padding: 2rem;">${t('unreleased.failedToLoadTrack')}</p>`;
         return;
     }
 
     const era = trackerData.eras[eraName];
     if (!era || !era.data) {
-        container.innerHTML = '<p style="text-align: center; padding: 2rem;">Track not found.</p>';
+        container.innerHTML = `<p style="text-align: center; padding: 2rem;">${t('unreleased.trackNotFound')}</p>`;
         return;
     }
 
@@ -875,7 +874,7 @@ export async function renderTrackerTrackPage(trackId, container, _ui) {
     });
 
     if (!currentTrack) {
-        container.innerHTML = '<p style="text-align: center; padding: 2rem;">Track not found.</p>';
+        container.innerHTML = `<p style="text-align: center; padding: 2rem;">${t('unreleased.trackNotFound')}</p>`;
         return;
     }
 
@@ -894,11 +893,11 @@ export async function renderTrackerTrackPage(trackId, container, _ui) {
     };
 
     titleEl.textContent = currentTrack.title;
-    metaEl.innerHTML = `${era.timeline || 'Unreleased'} • ${formatTime(currentTrack.duration)}`;
+    metaEl.innerHTML = `${era.timeline || t('unreleased.projects')} • ${formatTime(currentTrack.duration)}`;
     prodEl.innerHTML = `By <a href="/unreleased/${sheetId}">${artist.name}</a> • From <a href="/unreleased/${sheetId}/${encodeURIComponent(era.name)}">${era.name}</a>`;
 
     if (playBtn) {
-        playBtn.innerHTML = `${SVG_PLAY(20)}<span>Play Track</span>`;
+        playBtn.innerHTML = `${SVG_PLAY(20)}<span>${t('unreleased.playTrack')}</span>`;
         playBtn.onclick = () => {
             const availableTracks = allTracks.filter((t) => !t.unavailable);
             const trackPos = availableTracks.findIndex((t) => t.id === currentTrack.id);
@@ -960,7 +959,7 @@ export async function renderTrackerTrackPage(trackId, container, _ui) {
                 })
                 .join('');
 
-            if (moreAlbumsTitle) moreAlbumsTitle.textContent = `More unreleased from ${artist.name}`;
+            if (moreAlbumsTitle) moreAlbumsTitle.textContent = `${t('unreleased.moreFrom')} ${artist.name}`;
             moreAlbumsSection.style.display = 'block';
         } else {
             moreAlbumsSection.style.display = 'none';

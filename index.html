@@ -1417,11 +1417,13 @@
                         alt=""
                     />
                     <div class="detail-header-info">
-                        <div class="type">Unreleased Project</div>
+                        <div class="type" data-i18n="unreleased.unreleasedProject">Unreleased Project</div>
                         <h1 id="tracker-header-title" class="title" style="font-size: 2rem"></h1>
                         <div id="tracker-header-meta" class="meta"></div>
                         <div class="detail-header-actions">
-                            <button class="btn-secondary" id="close-tracker-modal">Close</button>
+                            <button class="btn-secondary" id="close-tracker-modal" data-i18n="common.close">
+                                Close
+                            </button>
                         </div>
                     </div>
                 </header>
@@ -1432,9 +1434,11 @@
                 <div id="tracker-tracklist" class="track-list" style="overflow-y: auto; flex: 1">
                     <div class="track-list-header">
                         <span style="width: 40px; text-align: center">#</span>
-                        <span>Title</span>
+                        <span data-i18n="common.title">Title</span>
                         <span class="duration-header">Duration</span>
-                        <span style="display: flex; justify-content: flex-end; opacity: 0.8">Menu</span>
+                        <span style="display: flex; justify-content: flex-end; opacity: 0.8" data-i18n="common.menu"
+                            >Menu</span
+                        >
                     </div>
                 </div>
             </div>
@@ -1666,7 +1670,7 @@
                             <li class="nav-item" id="sidebar-nav-unreleased">
                                 <a href="/unreleased">
                                     <use svg="./images/squares.svg" size="24" />
-                                    <span>Unreleased</span>
+                                    <span data-i18n="nav.unreleased">Unreleased</span>
                                 </a>
                             </li>
                             <li class="nav-item" id="sidebar-nav-donate">
@@ -2163,17 +2167,27 @@
                             class="detail-header-image artist"
                         />
                         <div class="detail-header-info">
-                            <div class="type">Unreleased Artist</div>
+                            <div class="type" data-i18n="unreleased.unreleasedArtist">Unreleased Artist</div>
                             <h1 class="title" id="tracker-artist-detail-name"></h1>
                             <div class="meta" id="tracker-artist-detail-meta"></div>
                             <div class="detail-header-actions">
-                                <button id="play-tracker-artist-btn" class="btn-primary" title="Shuffle Play">
+                                <button
+                                    id="play-tracker-artist-btn"
+                                    class="btn-primary"
+                                    title="Shuffle Play"
+                                    data-i18n-title="unreleased.shufflePlay"
+                                >
                                     <use svg="./images/play.svg" size="20" />
-                                    <span>Shuffle Play</span>
+                                    <span data-i18n="unreleased.shufflePlay">Shuffle Play</span>
                                 </button>
-                                <button id="download-tracker-artist-btn" class="btn-primary" title="Download">
+                                <button
+                                    id="download-tracker-artist-btn"
+                                    class="btn-primary"
+                                    title="Download"
+                                    data-i18n-title="common.download"
+                                >
                                     <use svg="!lucide/download.svg" size="20" />
-                                    <span>Download All</span>
+                                    <span data-i18n="unreleased.downloadAll">Download All</span>
                                 </button>
                             </div>
                         </div>
@@ -2513,7 +2527,7 @@
                         <button id="load-unreleased-btn" class="btn-primary">Load Unreleased Projects</button>
                     </section>
                     <section class="content-section" id="artist-section-unreleased" style="display: none">
-                        <h2 class="section-title">Unreleased Music</h2>
+                        <h2 class="section-title" data-i18n="unreleased.title">Unreleased Music</h2>
                         <div class="card-grid" id="artist-detail-unreleased"></div>
                     </section>
                     <section class="content-section" id="artist-section-similar" style="display: none">
