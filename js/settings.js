@@ -1437,7 +1437,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
         if (presetIds.length === 0) {
             const emptyOption = document.createElement('option');
             emptyOption.value = '';
-            emptyOption.textContent = 'No custom presets saved';
+            emptyOption.textContent = t('settings.equalizer.noPresets');
             emptyOption.disabled = true;
             customPresetsOptgroup.appendChild(emptyOption);
         } else {
@@ -1875,7 +1875,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
                 // Show feedback
                 const originalText = saveCustomPresetBtn.textContent;
-                saveCustomPresetBtn.textContent = 'Saved!';
+                saveCustomPresetBtn.textContent = t('common.saved');
                 setTimeout(() => {
                     saveCustomPresetBtn.textContent = originalText;
                 }, 1500);
@@ -1975,7 +1975,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
             // Show feedback
             const originalText = applyEqRangeBtn.textContent;
-            applyEqRangeBtn.textContent = 'Applied!';
+            applyEqRangeBtn.textContent = t('common.applied');
             setTimeout(() => {
                 applyEqRangeBtn.textContent = originalText;
             }, 1500);
@@ -2016,7 +2016,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
             // Show feedback
             const originalText = resetEqRangeBtn.textContent;
-            resetEqRangeBtn.textContent = 'Reset!';
+            resetEqRangeBtn.textContent = t('common.resetDone');
             setTimeout(() => {
                 resetEqRangeBtn.textContent = originalText;
             }, 1500);
@@ -2078,7 +2078,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
             // Show feedback
             const originalText = applyEqFreqBtn.textContent;
-            applyEqFreqBtn.textContent = 'Applied!';
+            applyEqFreqBtn.textContent = t('common.applied');
             setTimeout(() => {
                 applyEqFreqBtn.textContent = originalText;
             }, 1500);
@@ -2119,7 +2119,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
             // Show feedback
             const originalText = resetEqFreqBtn.textContent;
-            resetEqFreqBtn.textContent = 'Reset!';
+            resetEqFreqBtn.textContent = t('common.resetDone');
             setTimeout(() => {
                 resetEqFreqBtn.textContent = originalText;
             }, 1500);
@@ -2173,9 +2173,9 @@ export async function initializeSettings(scrobbler, player, api, ui) {
                 navigator.clipboard
                     .writeText(text)
                     .then(() => {
-                        eqExportBtn.textContent = 'Copied!';
+                        eqExportBtn.textContent = t('common.copied');
                         setTimeout(() => {
-                            eqExportBtn.textContent = 'Export';
+                            eqExportBtn.textContent = t('settings.equalizer.export');
                         }, 1500);
                     })
                     .catch(() => {
@@ -2227,14 +2227,14 @@ export async function initializeSettings(scrobbler, player, api, ui) {
                     const gains = audioContextManager.getGains?.() || equalizerSettings.getGains(currentBandCount);
                     updateAllBandUI(gains);
 
-                    eqImportBtn.textContent = 'Imported!';
+                    eqImportBtn.textContent = t('common.imported');
                     setTimeout(() => {
-                        eqImportBtn.textContent = 'Import';
+                        eqImportBtn.textContent = t('settings.equalizer.import');
                     }, 1500);
                 } else {
-                    eqImportBtn.textContent = 'Invalid!';
+                    eqImportBtn.textContent = t('common.invalid');
                     setTimeout(() => {
-                        eqImportBtn.textContent = 'Import';
+                        eqImportBtn.textContent = t('settings.equalizer.import');
                     }, 1500);
                 }
             };
@@ -2973,20 +2973,20 @@ export async function initializeSettings(scrobbler, player, api, ui) {
     document.getElementById('refresh-speed-test-btn')?.addEventListener('click', async () => {
         const btn = document.getElementById('refresh-speed-test-btn');
         const originalText = btn.textContent;
-        btn.textContent = 'Testing...';
+        btn.textContent = t('settings.instances.testing');
         btn.disabled = true;
 
         try {
             await api.settings.refreshInstances();
             ui.renderApiSettings();
-            btn.textContent = 'Done!';
+            btn.textContent = t('common.done');
             setTimeout(() => {
                 btn.textContent = originalText;
                 btn.disabled = false;
             }, 1500);
         } catch (error) {
             console.error('Failed to refresh speed tests:', error);
-            btn.textContent = 'Error';
+            btn.textContent = t('common.error');
             setTimeout(() => {
                 btn.textContent = originalText;
                 btn.disabled = false;
@@ -3294,7 +3294,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
                 const date = new Date(lastSync);
                 queueSyncTimestamp.textContent = date.toLocaleString();
             } else {
-                queueSyncTimestamp.textContent = 'Never';
+                queueSyncTimestamp.textContent = t('common.never');
             }
         }
     };
@@ -3510,7 +3510,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
                 document.body.appendChild(badge);
             }
             const badge = document.querySelector('.data-saver-badge');
-            if (badge) badge.textContent = mode === 'extreme' ? 'DATA SAVER: MAX' : 'DATA SAVER: ON';
+            if (badge) badge.textContent = mode === 'extreme' ? t('settings.dataSaver.max') : t('settings.dataSaver.on');
         } else {
             if (existingBadge) existingBadge.remove();
         }
@@ -3870,7 +3870,7 @@ function initializeBlockedContentManager() {
         const totalCount = artists.length + albums.length + tracks.length;
 
         // Update manage button text
-        manageBtn.textContent = totalCount > 0 ? `Manage (${totalCount})` : 'Manage';
+        manageBtn.textContent = totalCount > 0 ? `${t('settings.contentBlocking.manage')} (${totalCount})` : t('settings.contentBlocking.manage');
 
         // Show/hide clear all button
         if (clearAllBtn) {

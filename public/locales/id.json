@@ -8,7 +8,6 @@
   "nav.about": "Tentang",
   "nav.discord": "Discord",
   "nav.pinned": "Disematkan",
-
   "settings.title": "Pengaturan",
   "settings.tab.appearance": "Tampilan",
   "settings.tab.interface": "Antarmuka",
@@ -17,7 +16,6 @@
   "settings.tab.downloads": "Unduhan",
   "settings.tab.instances": "Instansi",
   "settings.tab.system": "Sistem",
-
   "settings.appearance.theme": "Tema",
   "settings.appearance.theme.desc": "Pilih skema warna yang Anda inginkan",
   "settings.appearance.communityThemes": "Tema Komunitas",
@@ -68,7 +66,6 @@
   "settings.appearance.smartIntensity.desc": "Sesuaikan intensitas visualisasi secara otomatis berdasarkan energi lagu",
   "settings.appearance.visualizerSensitivity": "Sensitivitas Visualisasi",
   "settings.appearance.visualizerSensitivity.desc": "Sesuaikan intensitas efek visualisasi. Peringatan: Sensitivitas tinggi dapat menyebabkan lampu berkedip dan gerakan cepat, yang dapat memicu kejang pada orang dengan epilepsi fotosensitif.",
-
   "settings.interface.recommendedSongs": "Tampilkan Lagu yang Direkomendasikan",
   "settings.interface.recommendedSongs.desc": "Tampilkan lagu yang direkomendasikan di halaman beranda",
   "settings.interface.nowPlaying": "Panel Yang Sedang Diputar",
@@ -81,7 +78,6 @@
   "settings.interface.sidebar.desc": "Pilih bagian mana yang muncul di bilah samping",
   "settings.interface.modalNavigation": "Tutup Modal Saat Navigasi",
   "settings.interface.modalNavigation.desc": "Tutup modal yang terbuka saat menavigasi ke halaman baru",
-
   "settings.audio.gaplessPlayback": "Pemutaran Tanpa Jeda",
   "settings.audio.gaplessPlayback.desc": "Aktifkan transisi mulus antar lagu",
   "settings.audio.replayGain": "Mode ReplayGain",
@@ -100,14 +96,12 @@
   "settings.audio.preservePitch.desc": "Pertahankan nada asli saat mengubah kecepatan",
   "settings.audio.equalizer": "Ekualizer",
   "settings.audio.equalizer.desc": "Sesuaikan audio Anda dengan ekualizer 10-band",
-
   "settings.downloads.quality": "Kualitas Unduhan",
   "settings.downloads.quality.desc": "Pilih kualitas audio untuk lagu yang diunduh",
   "settings.downloads.container": "Kontainer Lossless",
   "settings.downloads.container.desc": "Pilih format kontainer untuk unduhan lossless",
   "settings.downloads.bulkDownload": "Unduhan Massal",
   "settings.downloads.bulkDownload.desc": "Unduh seluruh daftar putar atau album sekaligus",
-
   "settings.scrobbling.lastfm": "Last.fm",
   "settings.scrobbling.lastfm.desc": "Kirim riwayat mendengarkan Anda ke Last.fm",
   "settings.scrobbling.lastfm.connect": "Hubungkan Last.fm",
@@ -124,7 +118,6 @@
   "settings.scrobbling.librefm.opening": "Membuka Libre.fm...",
   "settings.scrobbling.librefm.waiting": "Menunggu otorisasi...",
   "settings.scrobbling.librefm.disconnectConfirm": "Putuskan dari Libre.fm?",
-
   "settings.system.analytics": "Analitik",
   "settings.system.analytics.desc": "Bantu tingkatkan Monochrome dengan mengirimkan data penggunaan anonim",
   "settings.system.pwaUpdate": "Pembaruan Otomatis",
@@ -135,11 +128,9 @@
   "settings.system.cloud.cleared": "Selesai dibersihkan!",
   "settings.system.queueSync.syncing": "Menyinkronkan...",
   "settings.system.queueSync.syncNow": "Sinkronkan Sekarang",
-
   "settings.auth.login": "Masuk",
   "settings.auth.loggingIn": "Sedang masuk...",
   "settings.common.connectedAs": "Terhubung sebagai",
-
   "player.play": "Putar",
   "player.pause": "Jeda",
   "player.next": "Berikutnya",
@@ -151,7 +142,6 @@
   "player.volume": "Volume",
   "player.mute": "Bisukan",
   "player.playbackSpeed": "Kecepatan Pemutaran",
-
   "common.save": "Simpan",
   "common.cancel": "Batal",
   "common.apply": "Terapkan",
@@ -170,5 +160,20 @@
   "common.disconnect": "Putuskan",
   "common.connect": "Hubungkan",
   "common.openThemeStore": "Buka Toko Tema",
-  "common.unapplyTheme": "Hapus Tema"
+  "common.unapplyTheme": "Hapus Tema",
+  "settings.equalizer.noPresets": "Tidak ada preset kustom yang tersimpan",
+  "settings.equalizer.export": "Ekspor",
+  "settings.equalizer.import": "Impor",
+  "settings.instances.testing": "Menguji...",
+  "settings.dataSaver.max": "HEMAT DATA: MAKS",
+  "settings.dataSaver.on": "HEMAT DATA: AKTIF",
+  "settings.contentBlocking.manage": "Kelola",
+  "common.saved": "Tersimpan!",
+  "common.applied": "Diterapkan!",
+  "common.resetDone": "Direset!",
+  "common.copied": "Disalin!",
+  "common.imported": "Diimpor!",
+  "common.invalid": "Tidak valid!",
+  "common.done": "Selesai!",
+  "common.never": "Tidak pernah"
 }
