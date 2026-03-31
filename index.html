@@ -58,6 +58,7 @@
                     data-label-unlike-playlist="Remove playlist from library"
                     data-label-video="Like"
                     data-label-unlike-video="Unlike"
+                    data-i18n="context.like"
                 >
                     Like
                 </li>
@@ -77,6 +78,7 @@
                     data-type-filter="track"
                     data-label-block="Block track"
                     data-label-unblock="Unblock track"
+                    data-i18n="context.blockTrack"
                 >
                     Block track
                 </li>
@@ -85,6 +87,7 @@
                     data-type-filter="album,track"
                     data-label-block="Block album"
                     data-label-unblock="Unblock album"
+                    data-i18n="context.blockAlbum"
                 >
                     Block album
                 </li>
@@ -93,6 +96,7 @@
                     data-type-filter="track,album,artist"
                     data-label-block="Block artist"
                     data-label-unblock="Unblock artist"
+                    data-i18n="context.blockArtist"
                 >
                     Block artist
                 </li>
@@ -101,18 +105,18 @@
 
         <div id="sort-menu" style="display: none">
             <ul>
-                <li data-sort="custom">Playlist Order</li>
-                <li data-sort="added-newest" class="requires-added-date">Date Added (Newest)</li>
-                <li data-sort="added-oldest" class="requires-added-date">Date Added (Oldest)</li>
-                <li data-sort="title">Title (A-Z)</li>
-                <li data-sort="artist">Artist (A-Z)</li>
-                <li data-sort="album">Album (A-Z)</li>
+                <li data-sort="custom" data-i18n="sortMenu.playlistOrder">Playlist Order</li>
+                <li data-sort="added-newest" class="requires-added-date" data-i18n="sortMenu.dateAddedNewest">Date Added (Newest)</li>
+                <li data-sort="added-oldest" class="requires-added-date" data-i18n="sortMenu.dateAddedOldest">Date Added (Oldest)</li>
+                <li data-sort="title" data-i18n="sortMenu.titleAZ">Title (A-Z)</li>
+                <li data-sort="artist" data-i18n="sortMenu.artistAZ">Artist (A-Z)</li>
+                <li data-sort="album" data-i18n="sortMenu.albumAZ">Album (A-Z)</li>
             </ul>
         </div>
 
         <div id="side-panel" class="side-panel">
             <div class="panel-header">
-                <h3 id="side-panel-title">Panel</h3>
+                <h3 id="side-panel-title" data-i18n="sidePanel.title">Panel</h3>
                 <div class="panel-controls" id="side-panel-controls">
                     <!-- Controls injected dynamically -->
                 </div>
@@ -256,11 +260,12 @@
         <div id="playlist-modal" class="modal">
             <div class="modal-overlay"></div>
             <div class="modal-content">
-                <h3 id="playlist-modal-title">Create Playlist</h3>
+                <h3 id="playlist-modal-title" data-i18n="playlist.createTitle">Create Playlist</h3>
                 <input
                     type="text"
                     id="playlist-name-input"
                     class="template-input"
+                    data-i18n-placeholder="playlist.namePlaceholder"
                     placeholder="Playlist name"
                     style="margin: 1rem 0"
                 />
@@ -272,6 +277,7 @@
                         type="url"
                         id="playlist-cover-input"
                         class="template-input"
+                        data-i18n-placeholder="playlist.coverPlaceholder"
                         placeholder="Cover image URL"
                         style="flex: 1; margin: 0; display: none"
                     />
@@ -291,7 +297,7 @@
                         "
                     >
                         <use svg="!lucide/upload.svg" size="16" />
-                        <span id="playlist-cover-btn-text">Upload</span>
+                        <span id="playlist-cover-btn-text" data-i18n="playlist.upload">Upload</span>
                     </button>
                     <button
                         type="button"
@@ -299,6 +305,7 @@
                         class="template-btn"
                         style="padding: 0.5rem; font-size: 0.85rem; white-space: nowrap"
                         title="Switch to URL input"
+                        data-i18n="playlist.orUrl"
                     >
                         or URL
                     </button>
@@ -312,6 +319,7 @@
                 <textarea
                     id="playlist-description-input"
                     class="template-input"
+                    data-i18n-placeholder="playlist.descriptionPlaceholder"
                     placeholder="Description (optional)"
                     style="margin: 0.5rem 0; min-height: 80px; resize: vertical"
                 ></textarea>
@@ -414,7 +422,7 @@
                     </div>
 
                     <div id="csv-import-panel" class="import-panel active">
-                        <p style="margin-bottom: 0.5rem; font-size: 0.9rem">Import from CSV</p>
+                        <p style="margin-bottom: 0.5rem; font-size: 0.9rem" data-i18n="playlist.importFrom">Import from CSV</p>
 
                         <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem">
                             <button
@@ -439,7 +447,7 @@
                         </div>
 
                         <div id="csv-spotify-guide" style="display: none; margin-bottom: 1rem">
-                            <p style="font-size: 0.8rem; margin: 0">
+                            <p style="font-size: 0.8rem; margin: 0" data-i18n="playlist.spotifyGuide">
                                 Please use
                                 <a href="https://exportify.app/" target="_blank" style="text-decoration: underline"
                                     >Exportify</a
@@ -449,7 +457,7 @@
                         </div>
 
                         <div id="csv-apple-guide" style="display: none; margin-bottom: 1rem">
-                            <p style="font-size: 0.8rem; margin: 0">
+                            <p style="font-size: 0.8rem; margin: 0" data-i18n="playlist.appleGuide">
                                 Please use
                                 <a
                                     href="https://www.tunemymusic.com/transfer/spotify-to-apple-music"
@@ -464,11 +472,12 @@
                         </div>
 
                         <div id="csv-ytm-guide" style="display: none; margin-bottom: 1rem">
-                            <p style="font-size: 0.8rem; margin: 0 0 0.5rem 0">Paste a YouTube Music Playlist URL.</p>
+                            <p style="font-size: 0.8rem; margin: 0 0 0.5rem 0" data-i18n="playlist.ytmGuide">Paste a YouTube Music Playlist URL.</p>
                             <input
                                 type="text"
                                 id="ytm-url-input"
                                 class="template-input"
+                                data-i18n-placeholder="playlist.ytmPlaceholder"
                                 placeholder="https://music.youtube.com/playlist?list=..."
                                 style="width: 100%; margin-bottom: 0.5rem"
                             />
@@ -483,7 +492,7 @@
                                 accept=".csv"
                                 style="width: 100%; margin-bottom: 0.5rem"
                             />
-                            <p style="font-size: 0.8rem; margin: 0; opacity: 0.7">
+                            <p style="font-size: 0.8rem; margin: 0; opacity: 0.7" data-i18n="playlist.csvHeadersNote">
                                 Make sure its headers are in English.
                             </p>
                         </div>
@@ -493,8 +502,8 @@
                             style="margin-top: 1rem; margin-bottom: 1rem; background: transparent"
                         >
                             <div class="info">
-                                <span style="font-size: 0.9rem; font-weight: 600">Strict Album Matching</span>
-                                <span style="font-size: 0.8rem; max-width: 14rem">
+                                <span style="font-size: 0.9rem; font-weight: 600" data-i18n="playlist.strictMatching">Strict Album Matching</span>
+                                <span style="font-size: 0.8rem; max-width: 14rem" data-i18n="playlist.strictMatchingDesc">
                                     Album name should strictly match CSV metadata. Disable for better discovery.
                                 </span>
                             </div>
@@ -1047,7 +1056,7 @@
             <div class="modal-overlay"></div>
             <div class="modal-content" style="max-width: 500px">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem">
-                    <h3 style="margin: 0">Download Discography</h3>
+                    <h3 style="margin: 0" data-i18n="download.discographyTitle">Download Discography</h3>
                     <button
                         class="close-modal-btn"
                         style="
@@ -1474,7 +1483,7 @@
                     The desktop version of Aether is currently undergoing essential maintenance to address critical
                     issues.
                 </p>
-                <p style="margin-bottom: 2rem; color: var(--muted-foreground); line-height: 1.5">
+                <p style="margin-bottom: 2rem; color: var(--muted-foreground); line-height: 1.5" data-i18n="download.disabledNotice">
                     Downloads are temporarily disabled while we work on fixing these issues. Please check back later.
                 </p>
                 <div class="modal-actions" style="justify-content: center">
@@ -1997,12 +2006,12 @@
                     <section class="content-section">
                         <h2 class="section-title">Favorites</h2>
                         <div class="search-tabs">
-                            <button class="search-tab active" data-tab="tracks">Liked Tracks</button>
-                            <button class="search-tab" data-tab="videos">Videos</button>
-                            <button class="search-tab" data-tab="albums">Albums</button>
-                            <button class="search-tab" data-tab="artists">Artists</button>
-                            <button class="search-tab" data-tab="playlists">Playlists and Mixes</button>
-                            <button class="search-tab" data-tab="local">Local Files</button>
+                            <button class="search-tab active" data-tab="tracks" data-i18n="search.likedTracks">Liked Tracks</button>
+                            <button class="search-tab" data-tab="videos" data-i18n="search.videos">Videos</button>
+                            <button class="search-tab" data-tab="albums" data-i18n="search.albums">Albums</button>
+                            <button class="search-tab" data-tab="artists" data-i18n="search.artists">Artists</button>
+                            <button class="search-tab" data-tab="playlists" data-i18n="search.playlists">Playlists and Mixes</button>
+                            <button class="search-tab" data-tab="local" data-i18n="search.tracks">Local Files</button>
                         </div>
                         <div class="search-tab-content active" id="library-tab-tracks">
                             <div style="display: flex; justify-content: flex-start; gap: 0.5rem; margin-bottom: 0.5rem">
@@ -2018,6 +2027,7 @@
                                         justify-content: center;
                                         border-radius: 50%;
                                     "
+                                    data-i18n-title="download.shuffleLiked"
                                     title="Shuffle Liked Tracks"
                                 >
                                     <use svg="!lucide/shuffle.svg" size="16" />
@@ -2034,6 +2044,7 @@
                                         justify-content: center;
                                         border-radius: 50%;
                                     "
+                                    data-i18n-title="download.likedTracks"
                                     title="Download Liked Tracks"
                                 >
                                     <use svg="!lucide/download.svg" size="16" />
@@ -2169,11 +2180,11 @@
                             <div class="detail-header-actions">
                                 <button id="play-tracker-artist-btn" class="btn-primary" title="Shuffle Play">
                                     <use svg="./images/play.svg" size="20" />
-                                    <span>Shuffle Play</span>
+                                    <span data-i18n="context.shufflePlay">Shuffle Play</span>
                                 </button>
                                 <button id="download-tracker-artist-btn" class="btn-primary" title="Download">
                                     <use svg="!lucide/download.svg" size="20" />
-                                    <span>Download All</span>
+                                    <span data-i18n="download.all">Download All</span>
                                 </button>
                             </div>
                         </div>
