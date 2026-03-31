@@ -1132,8 +1132,16 @@ const LANGUAGE_OVERRIDES = {
 };
 const STORAGE_KEY = 'monochrome-language';
 const DEFAULT_LANGUAGE = 'en';
+const LOCALE_FALLBACKS = {
+  'zh-CN': ['zh'],
+  'zh-TW': ['zh'],
+};
 let currentTranslations = {};
 let currentLanguage = DEFAULT_LANGUAGE;
+let baseEnglishTranslations = null;
+let currentPhraseMap = { ...COMMON_PHRASES_EN };
+let translationObserver = null;
+let isApplyingTranslations = false;
 
 function getStoredLanguage() {
   try {
@@ -1163,21 +1171,67 @@ function setStoredLanguage(lang) {
   }
 }
 
+async function fetchLocale(localeCode) {
+  const response = await fetch(`${LOCALE_PATH}/${localeCode}.json`);
+  if (!response.ok) {
+    throw new Error(`Failed to load locale: ${localeCode}`);
+  }
+  return response.json();
+}
+
+function getLocaleCandidates(lang) {
+  const baseLang = lang.split('-')[0];
+  const candidates = [lang];
+  if (baseLang && baseLang !== lang) {
+    candidates.push(baseLang);
+  }
+  const extraFallbacks = LOCALE_FALLBACKS[lang] || [];
+  candidates.push(...extraFallbacks);
+  return [...new Set(candidates)];
+}
+
 async function loadTranslations(lang) {
   const builtInPhrases = {
     ...COMMON_PHRASES_EN,
     ...(LANGUAGE_OVERRIDES[lang] || {}),
   };
-  try {
-    const response = await fetch(`${LOCALE_PATH}/${lang}.json`);
-    if (!response.ok) {
-      throw new Error(`Failed to load locale: ${lang}`);
+  for (const localeCode of getLocaleCandidates(lang)) {
+    try {
+      const loaded = await fetchLocale(localeCode);
+      return { ...loaded, ...builtInPhrases };
+    } catch {
+      // try next fallback
     }
-    const loaded = await response.json();
-    return { ...loaded, ...builtInPhrases };
-  } catch (err) {
-    return builtInPhrases;
   }
+  return builtInPhrases;
+}
+
+async function ensureEnglishBaseTranslations() {
+  if (baseEnglishTranslations) {
+    return baseEnglishTranslations;
+  }
+  try {
+    baseEnglishTranslations = await fetchLocale(DEFAULT_LANGUAGE);
+  } catch {
+    baseEnglishTranslations = {};
+  }
+  return baseEnglishTranslations;
+}
+
+function buildPhraseMap(lang, translations) {
+  const phraseMap = {
+    ...COMMON_PHRASES_EN,
+    ...(LANGUAGE_OVERRIDES[lang] || {}),
+  };
+  const englishCatalog = baseEnglishTranslations || {};
+  Object.entries(englishCatalog).forEach(([key, englishValue]) => {
+    if (typeof englishValue !== 'string') return;
+    const translatedValue = translations[key];
+    if (typeof translatedValue === 'string' && translatedValue !== englishValue) {
+      phraseMap[englishValue] = translatedValue;
+    }
+  });
+  return phraseMap;
 }
 
 export function t(key) {
@@ -1185,47 +1239,68 @@ export function t(key) {
 }
 
 export function applyTranslations(root = document) {
-  const elements = root.querySelectorAll('[data-i18n]');
-  elements.forEach((el) => {
-    const key = el.getAttribute('data-i18n');
-    if (!key) return;
-    const translation = t(key);
-    if (translation !== key) {
-      el.textContent = translation;
-    }
-  });
+  if (isApplyingTranslations) {
+    return;
+  }
+  isApplyingTranslations = true;
+  try {
+    const elements = root.querySelectorAll('[data-i18n]');
+    elements.forEach((el) => {
+      const key = el.getAttribute('data-i18n');
+      if (!key) return;
+      const translation = t(key);
+      if (translation !== key && el.textContent !== translation) {
+        el.textContent = translation;
+      }
+    });
 
-  const placeholderEls = root.querySelectorAll('[data-i18n-placeholder]');
-  placeholderEls.forEach((el) => {
-    const key = el.getAttribute('data-i18n-placeholder');
-    if (!key) return;
-    const translation = t(key);
-    if (translation !== key) {
-      el.setAttribute('placeholder', translation);
-    }
-  });
+    const placeholderEls = root.querySelectorAll('[data-i18n-placeholder]');
+    placeholderEls.forEach((el) => {
+      const key = el.getAttribute('data-i18n-placeholder');
+      if (!key) return;
+      const translation = t(key);
+      if (translation !== key && el.getAttribute('placeholder') !== translation) {
+        el.setAttribute('placeholder', translation);
+      }
+    });
 
-  const titleEls = root.querySelectorAll('[data-i18n-title]');
-  titleEls.forEach((el) => {
-    const key = el.getAttribute('data-i18n-title');
-    if (!key) return;
-    const translation = t(key);
-    if (translation !== key) {
-      el.setAttribute('title', translation);
-    }
-  });
+    const titleEls = root.querySelectorAll('[data-i18n-title]');
+    titleEls.forEach((el) => {
+      const key = el.getAttribute('data-i18n-title');
+      if (!key) return;
+      const translation = t(key);
+      if (translation !== key && el.getAttribute('title') !== translation) {
+        el.setAttribute('title', translation);
+      }
+    });
 
-  applyPhraseTranslations(root);
+    applyPhraseTranslations(root);
+  } finally {
+    isApplyingTranslations = false;
+  }
 }
 
 function applyPhraseTranslations(root = document) {
-  const phraseMap = {
-    ...COMMON_PHRASES_EN,
-    ...(LANGUAGE_OVERRIDES[currentLanguage] || {}),
-  };
   const scopedSelectors = [
     '.sidebar-nav .nav-item span',
     '.settings-tab',
+    '.section-title',
+    '.label',
+    '.description',
+    '.info .label',
+    '.modal h2',
+    '.modal h3',
+    '.modal label',
+    '.modal button',
+    '.modal option',
+    '.page-header h1',
+    '.page-header p',
+    '.playlist-title',
+    '.playlist-description',
+    '.artist-name',
+    '.album-name',
+    '.track-title',
+    '.status-text',
     '#page-settings .section-title',
     '#page-settings .label',
     '#page-settings .description',
@@ -1245,8 +1320,8 @@ function applyPhraseTranslations(root = document) {
     if (!el.dataset.i18nOriginalText) {
       el.dataset.i18nOriginalText = original;
     }
-    const translated = phraseMap[el.dataset.i18nOriginalText];
-    if (translated) {
+    const translated = currentPhraseMap[el.dataset.i18nOriginalText];
+    if (translated && el.textContent !== translated) {
       el.textContent = translated;
     }
   });
@@ -1256,10 +1331,31 @@ function applyPhraseTranslations(root = document) {
     if (!el.dataset.i18nOriginalPlaceholder) {
       el.dataset.i18nOriginalPlaceholder = original;
     }
-    const translated = phraseMap[el.dataset.i18nOriginalPlaceholder];
-    if (translated) {
+    const translated = currentPhraseMap[el.dataset.i18nOriginalPlaceholder];
+    if (translated && el.getAttribute('placeholder') !== translated) {
       el.setAttribute('placeholder', translated);
     }
+  });
+}
+
+function setupTranslationObserver() {
+  if (translationObserver) {
+    return;
+  }
+  translationObserver = new MutationObserver((mutations) => {
+    if (isApplyingTranslations) {
+      return;
+    }
+    for (const mutation of mutations) {
+      mutation.addedNodes.forEach((node) => {
+        if (!(node instanceof Element)) return;
+        applyTranslations(node);
+      });
+    }
+  });
+  translationObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
   });
 }
 
@@ -1277,7 +1373,9 @@ export async function switchLanguage(lang) {
   }
   currentLanguage = lang;
   setStoredLanguage(lang);
+  await ensureEnglishBaseTranslations();
   currentTranslations = await loadTranslations(lang);
+  currentPhraseMap = buildPhraseMap(lang, currentTranslations);
   applyTranslations();
   document.documentElement.setAttribute('lang', lang);
   window.dispatchEvent(new CustomEvent('languagechange', { detail: { language: lang } }));
@@ -1286,7 +1384,10 @@ export async function switchLanguage(lang) {
 export async function initI18n() {
   const lang = getStoredLanguage();
   currentLanguage = lang;
+  await ensureEnglishBaseTranslations();
   currentTranslations = await loadTranslations(lang);
+  currentPhraseMap = buildPhraseMap(lang, currentTranslations);
   applyTranslations();
   document.documentElement.setAttribute('lang', lang);
+  setupTranslationObserver();
 }

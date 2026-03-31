@@ -37,7 +37,7 @@ import {
     modalSettings,
     dataSaverSettings,
 } from './storage.js';
-import { switchLanguage, getCurrentLanguage, getSupportedLanguages, applyTranslations } from './i18n.js';
+import { switchLanguage, getCurrentLanguage, getSupportedLanguages, applyTranslations, t } from './i18n.js';
 import { audioContextManager, EQ_PRESETS } from './audio-context.js';
 import { db } from './db.js';
 import { authManager } from './accounts/auth.js';
@@ -52,6 +52,7 @@ async function getButterchurnPresets(...args) {
 }
 
 export async function initializeSettings(scrobbler, player, api, ui) {
+    const connectedAsText = (username) => `${t('settings.common.connectedAs')} ${username}`;
     // Restore last active settings tab
     const savedTab = settingsUiState.getActiveTab();
     const settingsTab = document.querySelector(`.settings-tab[data-tab="${savedTab}"]`);
@@ -162,8 +163,8 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
     function updateLastFMUI() {
         if (scrobbler.lastfm.isAuthenticated()) {
-            lastfmStatus.textContent = `Connected as ${scrobbler.lastfm.username}`;
-            lastfmConnectBtn.textContent = 'Disconnect';
+            lastfmStatus.textContent = connectedAsText(scrobbler.lastfm.username);
+            lastfmConnectBtn.textContent = t('common.disconnect');
             lastfmConnectBtn.classList.add('danger');
             lastfmToggleSetting.style.display = 'flex';
             lastfmLoveSetting.style.display = 'flex';
@@ -174,8 +175,8 @@ export async function initializeSettings(scrobbler, player, api, ui) {
             updateCustomCredsUI();
             hideCredentialAuth();
         } else {
-            lastfmStatus.textContent = 'Connect your Last.fm account to scrobble tracks';
-            lastfmConnectBtn.textContent = 'Connect Last.fm';
+            lastfmStatus.textContent = t('settings.scrobbling.lastfm.desc');
+            lastfmConnectBtn.textContent = t('settings.scrobbling.lastfm.connect');
             lastfmConnectBtn.classList.remove('danger');
             lastfmToggleSetting.style.display = 'none';
             lastfmLoveSetting.style.display = 'none';
@@ -217,7 +218,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
     lastfmConnectBtn?.addEventListener('click', async () => {
         if (scrobbler.lastfm.isAuthenticated()) {
-            if (confirm('Disconnect from Last.fm?')) {
+            if (confirm(t('settings.scrobbling.lastfm.disconnectConfirm'))) {
                 scrobbler.lastfm.disconnect();
                 updateLastFMUI();
             }
@@ -227,7 +228,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
         let authWindow = window.open('', '_blank');
 
         lastfmConnectBtn.disabled = true;
-        lastfmConnectBtn.textContent = 'Opening Last.fm...';
+        lastfmConnectBtn.textContent = t('settings.scrobbling.lastfm.opening');
 
         try {
             const { token, url } = await scrobbler.lastfm.getAuthUrl();
@@ -236,12 +237,12 @@ export async function initializeSettings(scrobbler, player, api, ui) {
                 authWindow.location.href = url;
             } else {
                 alert('Popup blocked! Please allow popups.');
-                lastfmConnectBtn.textContent = 'Connect Last.fm';
+                lastfmConnectBtn.textContent = t('settings.scrobbling.lastfm.connect');
                 lastfmConnectBtn.disabled = false;
                 return;
             }
 
-            lastfmConnectBtn.textContent = 'Waiting for authorization...';
+            lastfmConnectBtn.textContent = t('settings.scrobbling.lastfm.waiting');
 
             let attempts = 0;
             const maxAttempts = 5;
@@ -252,7 +253,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
                 if (attempts > maxAttempts) {
                     clearInterval(checkAuth);
                     if (authWindow && !authWindow.closed) authWindow.close();
-                    lastfmConnectBtn.textContent = 'Connect Last.fm';
+                    lastfmConnectBtn.textContent = t('settings.scrobbling.lastfm.connect');
                     lastfmConnectBtn.disabled = false;
                     // Ask user if they want to use credentials instead
                     if (
@@ -281,7 +282,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
         } catch (error) {
             console.error('Last.fm connection failed:', error);
             if (authWindow && !authWindow.closed) authWindow.close();
-            lastfmConnectBtn.textContent = 'Connect Last.fm';
+            lastfmConnectBtn.textContent = t('settings.scrobbling.lastfm.connect');
             lastfmConnectBtn.disabled = false;
             // Ask user if they want to use credentials instead
             if (confirm('Failed to connect to Last.fm. Would you like to login with username and password instead?')) {
@@ -387,7 +388,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
             }
 
             lastfmLoginCredentialsBtn.disabled = true;
-            lastfmLoginCredentialsBtn.textContent = 'Logging in...';
+            lastfmLoginCredentialsBtn.textContent = t('settings.auth.loggingIn');
 
             try {
                 const result = await scrobbler.lastfm.authenticateWithCredentials(username, password);
@@ -403,7 +404,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
                 alert('Failed to login: ' + error.message);
             } finally {
                 lastfmLoginCredentialsBtn.disabled = false;
-                lastfmLoginCredentialsBtn.textContent = 'Login';
+                lastfmLoginCredentialsBtn.textContent = t('settings.auth.login');
             }
         });
     }
@@ -551,16 +552,16 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
     function updateLibreFmUI() {
         if (scrobbler.librefm.isAuthenticated()) {
-            librefmStatus.textContent = `Connected as ${scrobbler.librefm.username}`;
-            librefmConnectBtn.textContent = 'Disconnect';
+            librefmStatus.textContent = connectedAsText(scrobbler.librefm.username);
+            librefmConnectBtn.textContent = t('common.disconnect');
             librefmConnectBtn.classList.add('danger');
             librefmToggleSetting.style.display = 'flex';
             librefmLoveSetting.style.display = 'flex';
             librefmToggle.checked = libreFmSettings.isEnabled();
             librefmLoveToggle.checked = libreFmSettings.shouldLoveOnLike();
         } else {
-            librefmStatus.textContent = 'Connect your Libre.fm account to scrobble tracks';
-            librefmConnectBtn.textContent = 'Connect Libre.fm';
+            librefmStatus.textContent = t('settings.scrobbling.librefm.desc');
+            librefmConnectBtn.textContent = t('settings.scrobbling.librefm.connect');
             librefmConnectBtn.classList.remove('danger');
             librefmToggleSetting.style.display = 'none';
             librefmLoveSetting.style.display = 'none';
@@ -572,7 +573,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
         librefmConnectBtn.addEventListener('click', async () => {
             if (scrobbler.librefm.isAuthenticated()) {
-                if (confirm('Disconnect from Libre.fm?')) {
+                if (confirm(t('settings.scrobbling.librefm.disconnectConfirm'))) {
                     scrobbler.librefm.disconnect();
                     updateLibreFmUI();
                 }
@@ -582,7 +583,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
             let authWindow = window.open('', '_blank');
 
             librefmConnectBtn.disabled = true;
-            librefmConnectBtn.textContent = 'Opening Libre.fm...';
+            librefmConnectBtn.textContent = t('settings.scrobbling.librefm.opening');
 
             try {
                 const { token, url } = await scrobbler.librefm.getAuthUrl();
@@ -591,12 +592,12 @@ export async function initializeSettings(scrobbler, player, api, ui) {
                     authWindow.location.href = url;
                 } else {
                     alert('Popup blocked! Please allow popups.');
-                    librefmConnectBtn.textContent = 'Connect Libre.fm';
+                    librefmConnectBtn.textContent = t('settings.scrobbling.librefm.connect');
                     librefmConnectBtn.disabled = false;
                     return;
                 }
 
-                librefmConnectBtn.textContent = 'Waiting for authorization...';
+                librefmConnectBtn.textContent = t('settings.scrobbling.librefm.waiting');
 
                 let attempts = 0;
                 const maxAttempts = 30;
@@ -606,7 +607,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
                     if (attempts > maxAttempts) {
                         clearInterval(checkAuth);
-                        librefmConnectBtn.textContent = 'Connect Libre.fm';
+                        librefmConnectBtn.textContent = t('settings.scrobbling.librefm.connect');
                         librefmConnectBtn.disabled = false;
                         if (authWindow && !authWindow.closed) authWindow.close();
                         alert('Authorization timed out. Please try again.');
@@ -632,7 +633,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
             } catch (error) {
                 console.error('Libre.fm connection failed:', error);
                 alert('Failed to connect to Libre.fm: ' + error.message);
-                librefmConnectBtn.textContent = 'Connect Libre.fm';
+                librefmConnectBtn.textContent = t('settings.scrobbling.librefm.connect');
                 librefmConnectBtn.disabled = false;
                 if (authWindow && !authWindow.closed) authWindow.close();
             }
@@ -1436,7 +1437,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
         if (presetIds.length === 0) {
             const emptyOption = document.createElement('option');
             emptyOption.value = '';
-            emptyOption.textContent = 'No custom presets saved';
+            emptyOption.textContent = t('settings.equalizer.noPresets');
             emptyOption.disabled = true;
             customPresetsOptgroup.appendChild(emptyOption);
         } else {
@@ -1874,7 +1875,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
                 // Show feedback
                 const originalText = saveCustomPresetBtn.textContent;
-                saveCustomPresetBtn.textContent = 'Saved!';
+                saveCustomPresetBtn.textContent = t('common.saved');
                 setTimeout(() => {
                     saveCustomPresetBtn.textContent = originalText;
                 }, 1500);
@@ -1974,7 +1975,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
             // Show feedback
             const originalText = applyEqRangeBtn.textContent;
-            applyEqRangeBtn.textContent = 'Applied!';
+            applyEqRangeBtn.textContent = t('common.applied');
             setTimeout(() => {
                 applyEqRangeBtn.textContent = originalText;
             }, 1500);
@@ -2015,7 +2016,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
             // Show feedback
             const originalText = resetEqRangeBtn.textContent;
-            resetEqRangeBtn.textContent = 'Reset!';
+            resetEqRangeBtn.textContent = t('common.resetDone');
             setTimeout(() => {
                 resetEqRangeBtn.textContent = originalText;
             }, 1500);
@@ -2077,7 +2078,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
             // Show feedback
             const originalText = applyEqFreqBtn.textContent;
-            applyEqFreqBtn.textContent = 'Applied!';
+            applyEqFreqBtn.textContent = t('common.applied');
             setTimeout(() => {
                 applyEqFreqBtn.textContent = originalText;
             }, 1500);
@@ -2118,7 +2119,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
 
             // Show feedback
             const originalText = resetEqFreqBtn.textContent;
-            resetEqFreqBtn.textContent = 'Reset!';
+            resetEqFreqBtn.textContent = t('common.resetDone');
             setTimeout(() => {
                 resetEqFreqBtn.textContent = originalText;
             }, 1500);
@@ -2172,9 +2173,9 @@ export async function initializeSettings(scrobbler, player, api, ui) {
                 navigator.clipboard
                     .writeText(text)
                     .then(() => {
-                        eqExportBtn.textContent = 'Copied!';
+                        eqExportBtn.textContent = t('common.copied');
                         setTimeout(() => {
-                            eqExportBtn.textContent = 'Export';
+                            eqExportBtn.textContent = t('settings.equalizer.export');
                         }, 1500);
                     })
                     .catch(() => {
@@ -2226,14 +2227,14 @@ export async function initializeSettings(scrobbler, player, api, ui) {
                     const gains = audioContextManager.getGains?.() || equalizerSettings.getGains(currentBandCount);
                     updateAllBandUI(gains);
 
-                    eqImportBtn.textContent = 'Imported!';
+                    eqImportBtn.textContent = t('common.imported');
                     setTimeout(() => {
-                        eqImportBtn.textContent = 'Import';
+                        eqImportBtn.textContent = t('settings.equalizer.import');
                     }, 1500);
                 } else {
-                    eqImportBtn.textContent = 'Invalid!';
+                    eqImportBtn.textContent = t('common.invalid');
                     setTimeout(() => {
-                        eqImportBtn.textContent = 'Import';
+                        eqImportBtn.textContent = t('settings.equalizer.import');
                     }, 1500);
                 }
             };
@@ -2972,20 +2973,20 @@ export async function initializeSettings(scrobbler, player, api, ui) {
     document.getElementById('refresh-speed-test-btn')?.addEventListener('click', async () => {
         const btn = document.getElementById('refresh-speed-test-btn');
         const originalText = btn.textContent;
-        btn.textContent = 'Testing...';
+        btn.textContent = t('settings.instances.testing');
         btn.disabled = true;
 
         try {
             await api.settings.refreshInstances();
             ui.renderApiSettings();
-            btn.textContent = 'Done!';
+            btn.textContent = t('common.done');
             setTimeout(() => {
                 btn.textContent = originalText;
                 btn.disabled = false;
             }, 1500);
         } catch (error) {
             console.error('Failed to refresh speed tests:', error);
-            btn.textContent = 'Error';
+            btn.textContent = t('common.error');
             setTimeout(() => {
                 btn.textContent = originalText;
                 btn.disabled = false;
@@ -3040,12 +3041,12 @@ export async function initializeSettings(scrobbler, player, api, ui) {
     document.getElementById('clear-cache-btn')?.addEventListener('click', async () => {
         const btn = document.getElementById('clear-cache-btn');
         const originalText = btn.textContent;
-        btn.textContent = 'Clearing...';
+        btn.textContent = t('settings.system.cloud.clearing');
         btn.disabled = true;
 
         try {
             await api.clearCache();
-            btn.textContent = 'Cleared!';
+            btn.textContent = t('settings.system.cloud.cleared');
             setTimeout(() => {
                 btn.textContent = originalText;
                 btn.disabled = false;
@@ -3055,7 +3056,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
             }, 1500);
         } catch (error) {
             console.error('Failed to clear cache:', error);
-            btn.textContent = 'Error';
+            btn.textContent = t('common.error');
             setTimeout(() => {
                 btn.textContent = originalText;
                 btn.disabled = false;
@@ -3293,7 +3294,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
                 const date = new Date(lastSync);
                 queueSyncTimestamp.textContent = date.toLocaleString();
             } else {
-                queueSyncTimestamp.textContent = 'Never';
+                queueSyncTimestamp.textContent = t('common.never');
             }
         }
     };
@@ -3319,12 +3320,12 @@ export async function initializeSettings(scrobbler, player, api, ui) {
                 return;
             }
             queueSyncNowBtn.disabled = true;
-            queueSyncNowBtn.textContent = 'Syncing...';
+            queueSyncNowBtn.textContent = t('settings.system.queueSync.syncing');
             try {
                 await queueSyncManager.syncQueue(player);
             } finally {
                 queueSyncNowBtn.disabled = false;
-                queueSyncNowBtn.textContent = 'Sync Now';
+                queueSyncNowBtn.textContent = t('settings.system.queueSync.syncNow');
                 updateQueueSyncUI();
             }
         });
@@ -3509,7 +3510,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
                 document.body.appendChild(badge);
             }
             const badge = document.querySelector('.data-saver-badge');
-            if (badge) badge.textContent = mode === 'extreme' ? 'DATA SAVER: MAX' : 'DATA SAVER: ON';
+            if (badge) badge.textContent = mode === 'extreme' ? t('settings.dataSaver.max') : t('settings.dataSaver.on');
         } else {
             if (existingBadge) existingBadge.remove();
         }
@@ -3869,7 +3870,7 @@ function initializeBlockedContentManager() {
         const totalCount = artists.length + albums.length + tracks.length;
 
         // Update manage button text
-        manageBtn.textContent = totalCount > 0 ? `Manage (${totalCount})` : 'Manage';
+        manageBtn.textContent = totalCount > 0 ? `${t('settings.contentBlocking.manage')} (${totalCount})` : t('settings.contentBlocking.manage');
 
         // Show/hide clear all button
         if (clearAllBtn) {

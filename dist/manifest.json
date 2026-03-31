@@ -1,0 +1,31 @@
+{
+    "name": "Aether Music",
+    "short_name": "Aether",
+    "description": "A futuristic music streaming application",
+    "start_url": "./",
+    "display": "standalone",
+    "display_override": ["window-controls-overlay"],
+    "background_color": "#0a0a1a",
+    "theme_color": "#0a0a1a",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "assets/appicon.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "assets/appicon.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "assets/appicon.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

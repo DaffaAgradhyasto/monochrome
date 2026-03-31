@@ -2877,7 +2877,9 @@
                                 </div>
                                 <div class="setting-item">
                                     <div class="info">
-                                        <span class="label">Waveform Seekbar</span>
+                                        <span class="label" data-i18n="settings.appearance.waveform"
+                                            >Waveform Seekbar</span
+                                        >
                                         <span class="description"
                                             >Show a visual waveform of the track in the progress bar
                                             (Experimental)</span
@@ -2890,7 +2892,9 @@
                                 </div>
                                 <div class="setting-item">
                                     <div class="info">
-                                        <span class="label">Album Cover Background</span>
+                                        <span class="label" data-i18n="settings.appearance.albumBackground"
+                                            >Album Cover Background</span
+                                        >
                                         <span class="description"
                                             >Use the album cover as a blurred background on album pages and as primary
                                             color</span
@@ -2903,8 +2907,10 @@
                                 </div>
                                 <div class="setting-item">
                                     <div class="info">
-                                        <span class="label">Dynamic Colors</span>
-                                        <span class="description"
+                                        <span class="label" data-i18n="settings.appearance.dynamicColor"
+                                            >Dynamic Colors</span
+                                        >
+                                        <span class="description" data-i18n="settings.appearance.dynamicColor.desc"
                                             >Automatically change the app accent color based on the currently playing
                                             track's album art</span
                                         >
@@ -2919,8 +2925,14 @@
                             <div class="settings-group">
                                 <div class="setting-item">
                                     <div class="info">
-                                        <span class="label">Full-screen Visualizer</span>
-                                        <span class="description">Enable the visualizer in full-screen mode</span>
+                                        <span class="label" data-i18n="settings.appearance.fullscreenVisualizer"
+                                            >Full-screen Visualizer</span
+                                        >
+                                        <span
+                                            class="description"
+                                            data-i18n="settings.appearance.fullscreenVisualizer.desc"
+                                            >Enable the visualizer in full-screen mode</span
+                                        >
                                     </div>
                                     <label class="toggle-switch">
                                         <input type="checkbox" id="visualizer-enabled-toggle" checked />
@@ -2929,33 +2941,57 @@
                                 </div>
                                 <div class="setting-item" id="visualizer-preset-setting">
                                     <div class="info">
-                                        <span class="label">Visualizer Style</span>
-                                        <span class="description">Select the visualization style</span>
+                                        <span class="label" data-i18n="settings.appearance.visualizerStyle"
+                                            >Visualizer Style</span
+                                        >
+                                        <span class="description" data-i18n="settings.appearance.visualizerStyle.desc"
+                                            >Select the visualization style</span
+                                        >
                                     </div>
                                     <select id="visualizer-preset-select">
-                                        <option value="lcd">LCD Pixels</option>
-                                        <option value="particles">Particles</option>
-                                        <option value="unknown-pleasures">Unknown Pleasures</option>
+                                        <option value="lcd" data-i18n="settings.appearance.visualizerStyle.lcd">
+                                            LCD Pixels
+                                        </option>
+                                        <option
+                                            value="particles"
+                                            data-i18n="settings.appearance.visualizerStyle.particles"
+                                        >
+                                            Particles
+                                        </option>
+                                        <option
+                                            value="unknown-pleasures"
+                                            data-i18n="settings.appearance.visualizerStyle.unknownPleasures"
+                                        >
+                                            Unknown Pleasures
+                                        </option>
                                         <option value="butterchurn">Butterchurn (Milkdrop)</option>
                                         <option value="kawarp">Kawarp</option>
                                     </select>
                                 </div>
                                 <div class="setting-item" id="visualizer-mode-setting">
                                     <div class="info">
-                                        <span class="label">Visualizer Mode</span>
-                                        <span class="description"
+                                        <span class="label" data-i18n="settings.appearance.visualizerMode"
+                                            >Visualizer Mode</span
+                                        >
+                                        <span class="description" data-i18n="settings.appearance.visualizerMode.desc"
                                             >Choose how the visualizer is displayed in full-screen</span
                                         >
                                     </div>
                                     <select id="visualizer-mode-select">
-                                        <option value="solid">Solid Background</option>
-                                        <option value="blended">Blended on Cover Art</option>
+                                        <option value="solid" data-i18n="settings.appearance.visualizerMode.solid">
+                                            Solid Background
+                                        </option>
+                                        <option value="blended" data-i18n="settings.appearance.visualizerMode.blended">
+                                            Blended on Cover Art
+                                        </option>
                                     </select>
                                 </div>
                                 <div class="setting-item" id="visualizer-smart-intensity-setting">
                                     <div class="info">
-                                        <span class="label">Smart Intensity Switching</span>
-                                        <span class="description"
+                                        <span class="label" data-i18n="settings.appearance.smartIntensity"
+                                            >Smart Intensity Switching</span
+                                        >
+                                        <span class="description" data-i18n="settings.appearance.smartIntensity.desc"
                                             >Automatically adjust visualizer intensity based on song energy</span
                                         >
                                     </div>
@@ -2966,8 +3002,10 @@
                                 </div>
                                 <div class="setting-item" id="visualizer-sensitivity-setting">
                                     <div class="info">
-                                        <span class="label">Visualizer Sensitivity</span>
-                                        <span class="description"
+                                        <span class="label" data-i18n="settings.appearance.visualizerSensitivity"
+                                            >Visualizer Sensitivity</span
+                                        >
+                                        <span class="description" data-i18n="settings.appearance.visualizerSensitivity.desc"
                                             >Adjust the intensity of the visualizer effects.
                                             <strong
                                                 >Warning: High sensitivity may cause flashing lights and rapid motion,
