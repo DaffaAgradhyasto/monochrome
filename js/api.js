@@ -2189,7 +2189,7 @@ export class LosslessAPI {
                     quality,
                     onProgress,
                     options.signal,
-                    track?.audioQuality ?? null
+                    lookup.info?.audioQuality ?? null
                 );
             }
 
