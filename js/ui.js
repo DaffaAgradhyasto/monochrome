@@ -27,6 +27,7 @@ import {
     fontSettings,
     contentBlockingSettings,
     settingsUiState,
+    playbackSettings,
 } from './storage.js';
 import { db } from './db.js';
 import { getVibrantColorFromImage } from './vibrant-color.js';
@@ -147,6 +148,9 @@ export class UIRenderer {
         this.renderLock = false;
         this.lastRecommendedTracks = [];
         this.currentArtistId = null;
+
+        this._handleTiltMove = this._handleTiltMove.bind(this);
+        this._handleTiltLeave = this._handleTiltLeave.bind(this);
 
         // Listen for dynamic color reset events
         window.addEventListener('reset-dynamic-color', () => {
@@ -1245,6 +1249,14 @@ export class UIRenderer {
         this.setupFullscreenControls();
 
         overlay.style.display = 'flex';
+
+        // Apply vanilla-tilt effect to fullscreen cover if enabled
+        this._applyFullscreenTilt(overlay);
+
+        // Listen for tilt setting changes
+        window.addEventListener('fullscreen-tilt-toggle', (e) => {
+            this._applyFullscreenTilt(overlay, e.detail.enabled);
+        });
 
         const startVisualizer = async () => {
             if (!visualizerSettings.isEnabled()) {

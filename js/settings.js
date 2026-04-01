@@ -18,6 +18,7 @@ import {
     visualizerSettings,
     playlistSettings,
     equalizerSettings,
+    playbackSettings,
     listenBrainzSettings,
     malojaSettings,
     libreFmSettings,
