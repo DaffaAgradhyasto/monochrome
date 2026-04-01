@@ -3052,19 +3052,6 @@ body.multi-select-mode .track-item:hover {
     flex-shrink: 0;
 }
 
-#page-party-detail .detail-header-actions .btn-primary,
-#page-party-detail .detail-header-actions .btn-secondary {
-    width: auto;
-    height: auto;
-    padding: 0.6rem 1.2rem;
-    border-radius: var(--radius-full);
-}
-
-#page-party-detail .detail-header-actions .btn-primary span,
-#page-party-detail .detail-header-actions .btn-secondary span {
-    display: inline;
-}
-
 .detail-header-actions .card-menu-btn,
 .detail-header-actions #album-menu-btn {
     position: static !important;
