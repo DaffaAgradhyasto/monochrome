@@ -8004,6 +8004,85 @@ body:has(#side-panel.active) #toggle-ui-btn {
     border: 1px solid var(--border);
 }
 
+/* Connect Account Modal */
+.connect-provider-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.connect-provider-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.7rem 1rem;
+    background: var(--secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+    text-align: left;
+}
+
+.connect-provider-btn:hover {
+    background: var(--hover);
+    border-color: var(--highlight);
+}
+
+.connect-provider-btn:active {
+    transform: scale(0.98);
+}
+
+.connect-provider-btn--email {
+    color: var(--text-muted);
+}
+
+.connect-provider-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.connect-divider {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin: 0.25rem 0;
+}
+
+.connect-divider::before,
+.connect-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+
+.connect-skip-btn {
+    display: block;
+    width: 100%;
+    margin-top: 1rem;
+    padding: 0.5rem;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    cursor: pointer;
+    text-align: center;
+    transition: color 0.15s ease;
+}
+
+.connect-skip-btn:hover {
+    color: var(--text);
+}
+
+
+
 /* Micro-animations for Interactive Elements */
 .nav-item a {
     position: relative;

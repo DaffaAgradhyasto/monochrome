@@ -34,7 +34,47 @@ export class AuthManager {
         } catch {
             this.user = null;
             this.updateUI(null);
+            this.maybeShowWelcomeModal();
         }
+    }
+
+    maybeShowWelcomeModal() {
+        if (localStorage.getItem('welcome_modal_dismissed')) return;
+        const modal = document.getElementById('welcome-connect-modal');
+        if (!modal) return;
+
+        modal.classList.add('active');
+
+        const dismiss = () => {
+            modal.classList.remove('active');
+            localStorage.setItem('welcome_modal_dismissed', '1');
+        };
+
+        const bindProvider = (id, handler) => {
+            const btn = document.getElementById(id);
+            if (btn) btn.addEventListener('click', () => { dismiss(); handler(); }, { once: true });
+        };
+
+        bindProvider('welcome-google-btn', () => this.signInWithGoogle());
+        bindProvider('welcome-github-btn', () => this.signInWithGitHub());
+        bindProvider('welcome-discord-btn', () => this.signInWithDiscord());
+        bindProvider('welcome-spotify-btn', () => this.signInWithSpotify());
+        bindProvider('welcome-facebook-btn', () => this.signInWithFacebook());
+
+        const emailBtn = document.getElementById('welcome-email-btn');
+        if (emailBtn) {
+            emailBtn.addEventListener('click', () => {
+                dismiss();
+                const emailModal = document.getElementById('email-auth-modal');
+                if (emailModal) emailModal.classList.add('active');
+            }, { once: true });
+        }
+
+        const skipBtn = document.getElementById('welcome-skip-btn');
+        if (skipBtn) skipBtn.addEventListener('click', dismiss, { once: true });
+
+        const overlay = modal.querySelector('.modal-overlay');
+        if (overlay) overlay.addEventListener('click', dismiss, { once: true });
     }
 
     onAuthStateChanged(callback) {
