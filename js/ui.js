@@ -29,6 +29,8 @@ import {
     settingsUiState,
     fullscreenCoverNoRoundSettings,
     fullscreenCoverVanillaTiltSettings,
+    fullscreenCoverTiltDistanceSettings,
+    fullscreenCoverTiltSpeedSettings,
 } from './storage.js';
 import { db } from './db.js';
 import { getVibrantColorFromImage } from './vibrant-color.js';
@@ -1259,8 +1261,8 @@ export class UIRenderer {
         const coverImage = document.getElementById('fullscreen-cover-image');
         if (fullscreenCoverVanillaTiltSettings.isEnabled() && coverImage && window.VanillaTilt) {
             window.VanillaTilt.init(coverImage, {
-                max: 15,
-                speed: 400,
+                max: fullscreenCoverTiltDistanceSettings.getValue(),
+                speed: fullscreenCoverTiltSpeedSettings.getValue(),
                 glare: true,
                 'max-glare': 0.3,
             });
