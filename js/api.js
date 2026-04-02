@@ -1807,7 +1807,7 @@ export class LosslessAPI {
                     );
                 }
             } catch {
-                // Atmos codec probe — intentionally swallowed; canPlayAtmos stays false
+                // Atmos codec probe - intentionally swallowed; canPlayAtmos stays false
             }
 
             const paramsArray = [];

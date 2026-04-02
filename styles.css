@@ -4180,7 +4180,6 @@ input:checked + .slider::before {
 /* Blocked content styling */
 .track-item.blocked {
     opacity: 0.4;
-    pointer-events: none;
     filter: grayscale(100%);
 }
 
@@ -4188,20 +4187,9 @@ input:checked + .slider::before {
     text-decoration: line-through;
 }
 
-.track-item.blocked .track-menu-btn {
-    pointer-events: auto;
-    opacity: 1;
-}
-
 .card.blocked {
     opacity: 0.4;
-    pointer-events: none;
     filter: grayscale(100%);
-}
-
-.card.blocked .card-menu-btn {
-    pointer-events: auto;
-    opacity: 1;
 }
 
 .card.blocked .card-title,
