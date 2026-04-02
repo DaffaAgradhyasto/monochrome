@@ -4964,6 +4964,26 @@ export async function initializeSettings(scrobbler, player, api, ui) {
         });
     }
 
+    // Fullscreen Cover No Round Toggle
+    const fullscreenCoverNoRoundToggle = document.getElementById('fullscreen-cover-no-round-toggle');
+    if (fullscreenCoverNoRoundToggle) {
+        fullscreenCoverNoRoundToggle.checked = fullscreenCoverNoRoundSettings.isEnabled();
+        fullscreenCoverNoRoundToggle.addEventListener('change', (e) => {
+            fullscreenCoverNoRoundSettings.setEnabled(e.target.checked);
+            window.dispatchEvent(new CustomEvent('fullscreen-cover-settings-changed'));
+        });
+    }
+
+    // Fullscreen Cover Vanilla Tilt Toggle
+    const fullscreenCoverVanillaTiltToggle = document.getElementById('fullscreen-cover-vanilla-tilt-toggle');
+    if (fullscreenCoverVanillaTiltToggle) {
+        fullscreenCoverVanillaTiltToggle.checked = fullscreenCoverVanillaTiltSettings.isEnabled();
+        fullscreenCoverVanillaTiltToggle.addEventListener('change', (e) => {
+            fullscreenCoverVanillaTiltSettings.setEnabled(e.target.checked);
+            window.dispatchEvent(new CustomEvent('fullscreen-cover-settings-changed'));
+        });
+    }
+
     // Waveform Toggle
     const waveformToggle = document.getElementById('waveform-toggle');
     if (waveformToggle) {
