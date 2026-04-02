@@ -18,7 +18,6 @@ import {
     exponentialVolumeSettings,
     audioEffectsSettings,
     radioSettings,
-    playbackSettings,
 } from './storage.js';
 import { audioContextManager } from './audio-context.js';
 import { isIos, isSafari } from './platform-detection.js';
@@ -51,7 +50,6 @@ export class Player {
         this.repeatMode = REPEAT_MODE.OFF;
         this.preloadCache = new Map();
         this.preloadAbortController = null;
-        this._lastPreloadTime = null;
         this.currentTrack = null;
         this.currentRgValues = null;
         this.userVolume = parseFloat(localStorage.getItem('volume') || '0.7');
@@ -110,6 +108,7 @@ export class Player {
                     bufferingGoal: 30,
                     rebufferingGoal: 2,
                     bufferBehind: 30,
+                    jumpLargeGaps: true,
                 },
                 abr: {
                     enabled: true,
@@ -155,6 +154,7 @@ export class Player {
         document.addEventListener('visibilitychange', () => {
             const el = this.activeElement;
             if (document.visibilityState === 'visible' && !el.paused) {
+                // Ensure audio context is resumed when user returns to the app
                 if (!audioContextManager.isReady()) {
                     audioContextManager.init(el);
                 }
@@ -164,17 +164,6 @@ export class Player {
                 this.autoplayBlocked = false;
                 el.play().catch(() => {});
             }
-        });
-
-        // Time-based preload trigger for Safari background playback
-        this._timeUpdateHandler = this._handleTimeUpdateForPreload.bind(this);
-        this.audio.addEventListener('timeupdate', this._timeUpdateHandler);
-        if (this.video) {
-            this.video.addEventListener('timeupdate', this._timeUpdateHandler);
-        }
-
-        window.addEventListener('preload-time-change', () => {
-            this._lastPreloadTime = null;
         });
 
         this._setupVideoSync();
@@ -192,7 +181,9 @@ export class Player {
                             if (this.video.readyState >= 2 && (this.audio.readyState > 0 || this.audio.src)) {
                                 this.audio.currentTime = this.video.currentTime;
                             }
-                        } catch (err) {}
+                        } catch {
+                            // Video-to-audio time sync may fail if readyState is stale
+                        }
                     }
 
                     const syncedEvent = new Event(eventName, { bubbles: e.bubbles, cancelable: e.cancelable });
@@ -527,21 +518,6 @@ export class Player {
                 if (error.name !== 'AbortError') {
                     // console.debug('Failed to get stream URL for preload:', trackTitle);
                 }
-            }
-        }
-    }
-
-    _handleTimeUpdateForPreload() {
-        const el = this.activeElement;
-        if (!el || !el.duration || el.paused) return;
-
-        const preloadTime = playbackSettings.getPreloadTime();
-        const timeRemaining = el.duration - el.currentTime;
-        if (timeRemaining <= preloadTime && timeRemaining > 0) {
-            const now = Date.now();
-            if (!this._lastPreloadTime || now - this._lastPreloadTime > 5000) {
-                this._lastPreloadTime = now;
-                this.preloadNextTracks();
             }
         }
     }
@@ -1064,12 +1040,12 @@ export class Player {
                 try {
                     await this.playTrackFromQueue(startTime, recursiveCount, true);
                     return;
-                } catch (retryError) {
+                } catch {
+                    // LOSSLESS fallback also failed — fall through to error handling below
                 } finally {
                     this.quality = originalQuality;
                     this.isFallbackRetry = false;
                     this.isFallbackInProgress = false;
-                    return;
                 }
             }
 
@@ -1785,7 +1761,9 @@ export class Player {
                             a.canPlayType('audio/mp4; codecs="ec-3"') || a.canPlayType('audio/mp4; codecs="eac3"')
                         );
                     }
-                } catch (e) {}
+                } catch {
+                    // Atmos codec detection may fail on some browsers
+                }
 
                 let isAtmosPlaying = isTrackAtmos && deviceSupportsAtmos;
                 const q = this.quality || localStorage.getItem('adaptive-playback-quality') || 'auto';
@@ -1853,7 +1831,7 @@ export class Player {
                 // Re-enable ABR so it can dynamically downgrade within that new codec family if needed
                 this.shakaPlayer.configure({ abr: { enabled: true } });
             }
-        } catch (e) {
+        } catch {
             // fail silently on abr checks
         }
     }

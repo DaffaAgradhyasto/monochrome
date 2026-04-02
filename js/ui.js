@@ -27,7 +27,6 @@ import {
     fontSettings,
     contentBlockingSettings,
     settingsUiState,
-    playbackSettings,
 } from './storage.js';
 import { db } from './db.js';
 import { getVibrantColorFromImage } from './vibrant-color.js';
@@ -150,9 +149,6 @@ export class UIRenderer {
         this.renderLock = false;
         this.lastRecommendedTracks = [];
         this.currentArtistId = null;
-
-        this._handleTiltMove = this._handleTiltMove.bind(this);
-        this._handleTiltLeave = this._handleTiltLeave.bind(this);
 
         // Listen for dynamic color reset events
         window.addEventListener('reset-dynamic-color', () => {
@@ -1251,14 +1247,6 @@ export class UIRenderer {
         this.setupFullscreenControls();
 
         overlay.style.display = 'flex';
-
-        // Apply vanilla-tilt effect to fullscreen cover if enabled
-        this._applyFullscreenTilt(overlay);
-
-        // Listen for tilt setting changes
-        window.addEventListener('fullscreen-tilt-toggle', (e) => {
-            this._applyFullscreenTilt(overlay, e.detail.enabled);
-        });
 
         const startVisualizer = async () => {
             if (!visualizerSettings.isEnabled()) {
@@ -2675,7 +2663,9 @@ export class UIRenderer {
             else if (picksContainer.children.length > 0 && !picksContainer.querySelector('.skeleton')) return;
 
             try {
-                const response = await fetch('/editors-picks.json');
+                const source = homePageSettings.getEditorsPicksSource();
+                const picksPath = source === 'current' ? '/editors-picks.json' : `/editors-picks-old/${source}`;
+                const response = await fetch(picksPath);
                 if (!response.ok) throw new Error("Failed to load editor's picks");
 
                 let items = await response.json();
