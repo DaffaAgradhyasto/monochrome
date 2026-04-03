@@ -10,7 +10,7 @@ import {
     SVG_GLOBE,
 } from './icons.js';
 import { sidePanelManager } from './side-panel.js';
-import('@uimaxbai/am-lyrics/am-lyrics.js');
+import('@uimaxbai/am-lyrics/am-lyrics.js').catch(console.error);
 
 // Check if text contains Japanese, Chinese, or Korean characters
 function containsAsianText(text) {
@@ -271,6 +271,7 @@ export class LyricsManager {
             // Monkey-patch XMLHttpRequest to redirect dictionary requests to CDN
             // Kuromoji uses XHR, not fetch, for loading dictionary files
             if (!window._originalXHROpen) {
+                // eslint-disable-next-line @typescript-eslint/unbound-method
                 window._originalXHROpen = XMLHttpRequest.prototype.open;
                 XMLHttpRequest.prototype.open = function (method, url, ...rest) {
                     const urlStr = url.toString();
@@ -289,7 +290,7 @@ export class LyricsManager {
             if (!window._originalFetch) {
                 window._originalFetch = window.fetch;
                 window.fetch = async (url, options) => {
-                    const urlStr = url.toString();
+                    const urlStr = url instanceof URL ? url.toString() : url.url;
                     if (urlStr.includes('/dict/') && urlStr.includes('.dat.gz')) {
                         const filename = urlStr.split('/').pop();
                         const cdnUrl = `https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/${filename}`;
@@ -829,7 +830,7 @@ export class LyricsManager {
     }
 
     // Setup MutationObserver to convert lyrics in am-lyrics component
-    setupLyricsObserver(amLyricsElement) {
+    async setupLyricsObserver(amLyricsElement) {
         this.stopLyricsObserver();
 
         if (!amLyricsElement) return;
@@ -900,7 +901,7 @@ export class LyricsManager {
                     await this.translateLyricsContent(amLyricsElement);
                 }
                 if (this.isGeniusMode && this.currentGeniusData) {
-                    this.applyGeniusAnnotations(amLyricsElement, this.currentGeniusData.referents);
+                    await this.applyGeniusAnnotations(amLyricsElement, this.currentGeniusData.referents);
                 }
             }, 100);
         });
@@ -916,13 +917,13 @@ export class LyricsManager {
 
         // Initial conversion if Romaji mode is enabled - single attempt, no periodic polling
         if (this.isRomajiMode) {
-            this.convertLyricsContent(amLyricsElement);
+            await this.convertLyricsContent(amLyricsElement);
         }
         if (this.isTranslateMode) {
             this.translateLyricsContent(amLyricsElement);
         }
         if (this.isGeniusMode && this.currentGeniusData) {
-            this.applyGeniusAnnotations(amLyricsElement, this.currentGeniusData.referents);
+            await this.applyGeniusAnnotations(amLyricsElement, this.currentGeniusData.referents);
         }
     }
 
@@ -1581,7 +1582,7 @@ export function clearFullscreenLyricsSync(container) {
     }
 }
 
-export function clearLyricsPanelSync(audioPlayer, panel) {
+export function clearLyricsPanelSync(_audioPlayer, panel) {
     if (panel && panel.lyricsCleanup) {
         panel.lyricsCleanup();
         panel.lyricsCleanup = null;

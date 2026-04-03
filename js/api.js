@@ -5,10 +5,7 @@ import {
     delay,
     isTrackUnavailable,
     getExtensionFromBlob,
-    getTrackTitle,
-    getFullArtistString,
     getTrackDiscNumber,
-    getMimeType,
 } from './utils.js';
 import { trackDateSettings } from './storage.js';
 import { db } from './db.js';
@@ -71,8 +68,8 @@ export class LosslessAPI {
         };
 
         setInterval(
-            () => {
-                this.cache.clearExpired();
+            async () => {
+                await this.cache.clearExpired();
                 this.pruneStreamCache();
             },
             1000 * 60 * 5
@@ -515,7 +512,7 @@ export class LosslessAPI {
             await this.cache.set('search_all', query, results);
 
             return results;
-        } catch (error) {
+        } catch (_error) {
             // Fallback to individual searches if the backend proxy doesn't support ?q= or throws
             const [tracks, videos, artists, albums, playlists] = await Promise.all([
                 this.searchTracks(query, options).catch(() => ({ items: [] })),
@@ -1542,15 +1539,10 @@ export class LosslessAPI {
         if (cached) return cached;
 
         try {
-            const url = `https://api.tidal.com/v1/artists/${artistId}/bio?locale=en_US&countryCode=GB`;
-            const response = await fetch(url, {
-                headers: {
-                    'X-Tidal-Token': TIDAL_V2_TOKEN,
-                },
-            });
+            const response = await HiFiClient.instance.query(`/artist/bio/?id=${artistId}`);
 
             if (response.ok) {
-                const data = await response.json();
+                const { data } = await response.json();
                 if (data && data.text) {
                     const bio = {
                         text: data.text,
@@ -1869,7 +1861,7 @@ export class LosslessAPI {
             } else {
                 throw new Error('No URI in trackManifests response');
             }
-        } catch (err) {
+        } catch (_err) {
             // Fallback to /track endpoint
         }
 

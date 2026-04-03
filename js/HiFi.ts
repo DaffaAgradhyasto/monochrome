@@ -1,3 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+
 import { EventEmitter } from 'events';
 
 type Params = Record<string, string | number | undefined | null>;
@@ -57,6 +64,7 @@ class HiFiClient {
     readonly #albumTracksMax = 20;
     readonly #albumTracksQueue: Array<() => void> = [];
     readonly #countryCode: string;
+    readonly #locale: string;
     readonly #clientId: string;
     readonly #clientSecret: string;
     readonly #emitter = new EventEmitter();
@@ -149,7 +157,7 @@ class HiFiClient {
 
     setToken({ token, tokenExpiry, refreshToken }: HiFiClient.TokenOptions & HiFiClient.RefreshTokenOptions) {
         this.token = token;
-        this.appTokenExpiry = this.appTokenExpiry;
+        this.appTokenExpiry = tokenExpiry;
         this.refreshToken = refreshToken;
     }
 
@@ -169,7 +177,7 @@ class HiFiClient {
             scope?: string;
             signal?: AbortSignal;
             force?: boolean;
-        }) {
+        }): Promise<string | null> {
         if (!force && this.token && (this.appTokenExpiry < 0 || Date.now() < this.appTokenExpiry)) return this.token;
 
         return await (this.#tokenPromise ??= (async () => {
@@ -216,16 +224,27 @@ class HiFiClient {
     }
 
     static #getOptions({
+        locale = 'en_US',
         countryCode = 'US',
         baseUrl = null,
         clientId = HiFiClient.BROWSER_CLIENT_ID,
         clientSecret = HiFiClient.BROWSER_CLIENT_SECRET,
         token,
         tokenExpiry,
-        refreshToken: tokenRefresh,
+        refreshToken,
         storage = [],
-    }: HiFiClient.ConstructorOptions = {}) {
-        return { countryCode, baseUrl, clientId, clientSecret, token, tokenExpiry, tokenRefresh, storage };
+    }: HiFiClient.ConstructorOptions = {}): WithRequiredKeys<HiFiClient.ConstructorOptions> {
+        return {
+            locale,
+            countryCode,
+            baseUrl,
+            clientId,
+            clientSecret,
+            token,
+            tokenExpiry,
+            refreshToken,
+            storage,
+        };
     }
 
     async fetchToken(force: boolean = false, signal: AbortSignal | undefined = undefined) {
@@ -249,7 +268,7 @@ class HiFiClient {
         while (true) {
             const unauthorized = res?.status === 401;
             const previousResponse = res;
-            const token = await await this.#fetchAppToken({
+            const token = await this.#fetchAppToken({
                 clientId: this.#clientId,
                 clientSecret: this.#clientSecret,
                 signal,
@@ -289,15 +308,16 @@ class HiFiClient {
     }
 
     constructor(options: HiFiClient.ConstructorOptions = {}) {
-        const { countryCode, baseUrl, clientId, clientSecret, token, tokenExpiry, tokenRefresh, storage } =
+        const { locale, countryCode, baseUrl, clientId, clientSecret, token, tokenExpiry, refreshToken, storage } =
             HiFiClient.#getOptions(options);
+        this.#locale = locale;
         this.#countryCode = countryCode;
         this.#baseUrl = baseUrl;
         this.#clientId = clientId;
         this.#clientSecret = clientSecret;
         this.token = token;
         this.appTokenExpiry = tokenExpiry;
-        this.refreshToken = tokenRefresh;
+        this.refreshToken = refreshToken;
 
         for (const store of !Array.isArray(storage) ? [storage] : storage) {
             this.#useStorage(store);
@@ -633,6 +653,17 @@ class HiFiClient {
         return HiFiClient.#jsonResponse({ version: HiFiClient.API_VERSION, albums: page_data, tracks });
     }
 
+    async getArtistBiography(artistId: number, signal?: AbortSignal) {
+        const url = `https://api.tidal.com/v1/artists/${artistId}/bio`;
+        const params = {
+            locale: this.#locale,
+            countryCode: this.#countryCode,
+        };
+        const data = await this.#fetchJson(url, params, signal);
+
+        return HiFiClient.#jsonResponse({ version: HiFiClient.API_VERSION, data: data });
+    }
+
     #buildCoverEntry(cover_slug: string, name?: string | null, track_id?: number | null) {
         const slug = cover_slug.replace(/-/g, '/');
         return {
@@ -922,6 +953,8 @@ class HiFiClient {
                     return new TidalResponse(
                         await this.getSimilarAlbums(Number(qp.id), qp.cursor ?? undefined, signal)
                     );
+                case '/artist/bio':
+                    return new TidalResponse(await this.getArtistBiography(Number(qp.id), signal));
                 case '/artist':
                     return new TidalResponse(
                         await this.getArtist(
@@ -1027,8 +1060,13 @@ namespace HiFiClient {
         clientSecret?: string;
     }
 
-    export interface ConstructorOptions extends ClientOptions, TokenOptions, RefreshTokenOptions {
+    export interface LocaleOptions {
+        locale?: string;
         countryCode?: string;
+    }
+
+    export interface ConstructorOptions
+        extends LocaleOptions, RefreshTokenOptions, ClientOptions, TokenOptions, RefreshTokenOptions {
         baseUrl?: string;
         storage?: Pick<Storage, 'setItem' | 'removeItem'>[] | Pick<Storage, 'setItem' | 'removeItem'>;
     }

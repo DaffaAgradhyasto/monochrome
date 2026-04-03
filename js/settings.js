@@ -940,7 +940,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
     const showQualityBadgesToggle = document.getElementById('show-quality-badges-toggle');
     if (showQualityBadgesToggle) {
         showQualityBadgesToggle.checked = qualityBadgeSettings.isEnabled();
-        showQualityBadgesToggle.addEventListener('change', (e) => {
+        showQualityBadgesToggle.addEventListener('change', async (e) => {
             qualityBadgeSettings.setEnabled(e.target.checked);
             // Re-render queue if available, but don't force navigation to library
             if (window.renderQueueFunction) window.renderQueueFunction();
@@ -991,15 +991,15 @@ export async function initializeSettings(scrobbler, player, api, ui) {
         if (!forceZipBlobSettingItem) return;
         const method = modernSettings.bulkDownloadMethod;
         // Only relevant when zip method is selected and the browser supports streaming
-        const visible = method === 'zip' && hasFileSystemAccess;
+        const visible = method === BulkDownloadMethod.Zip && hasFileSystemAccess;
         forceZipBlobSettingItem.style.display = visible ? '' : 'none';
     }
 
     /** Shows/hides folder-picker-specific and folder-method settings */
     async function updateFolderMethodVisibility() {
         const method = modernSettings.bulkDownloadMethod;
-        const isFolderMethod = method === 'folder';
-        const isFolderOrLocal = isFolderMethod || method === 'local';
+        const isFolderMethod = method === BulkDownloadMethod.Folder;
+        const isFolderOrLocal = isFolderMethod || method === BulkDownloadMethod.LocalMedia;
 
         if (rememberFolderSetting) {
             rememberFolderSetting.style.display = isFolderMethod && hasFolderPicker ? '' : 'none';
@@ -1034,8 +1034,8 @@ export async function initializeSettings(scrobbler, player, api, ui) {
             }
             // If the stored method is 'folder' or 'local' without native support, fall back to 'zip'
             const currentMethod = modernSettings.bulkDownloadMethod;
-            if (currentMethod === 'folder' || currentMethod === 'local') {
-                modernSettings.bulkDownloadMethod = 'zip';
+            if (currentMethod === BulkDownloadMethod.Folder || currentMethod === BulkDownloadMethod.LocalMedia) {
+                modernSettings.bulkDownloadMethod = BulkDownloadMethod.Zip;
             }
         }
         bulkDownloadMethod.value = modernSettings.bulkDownloadMethod;
@@ -1045,7 +1045,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
             modernSettings.bulkDownloadMethod = newMethod;
 
             // When switching to 'local', prompt to select the local media folder if not yet configured
-            if (newMethod === 'local') {
+            if (newMethod === BulkDownloadMethod.LocalMedia) {
                 const existingHandle = await db.getSetting('local_folder_handle');
                 if (!existingHandle) {
                     let picked = false;
@@ -1359,12 +1359,12 @@ export async function initializeSettings(scrobbler, player, api, ui) {
         autoeqHeadphoneSelect.appendChild(optgroup);
 
         // When user picks a popular headphone from the dropdown, load it
-        autoeqHeadphoneSelect.addEventListener('change', () => {
+        autoeqHeadphoneSelect.addEventListener('change', async () => {
             const selected = autoeqHeadphoneSelect.value;
             if (!selected) return;
             const popularEntry = POPULAR_HEADPHONES.find((hp) => hp.name === selected);
             if (popularEntry && (!autoeqSelectedEntry || autoeqSelectedEntry.name !== selected)) {
-                loadHeadphoneEntry(popularEntry);
+                await loadHeadphoneEntry(popularEntry);
             }
         });
     }
@@ -2364,7 +2364,12 @@ export async function initializeSettings(scrobbler, player, api, ui) {
             }
             const x = freqToX(f, pw);
             const y = mid - (Math.max(-dbRange, Math.min(dbRange, total)) / dbRange) * mid * 0.9;
-            first ? (ctx.moveTo(x, y), (first = false)) : ctx.lineTo(x, y);
+            if (first) {
+                ctx.moveTo(x, y);
+                first = false;
+            } else {
+                ctx.lineTo(x, y);
+            }
         }
         ctx.strokeStyle = 'rgba(255,255,255,0.9)';
         ctx.lineWidth = 2;
@@ -2581,7 +2586,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
             modelMap.get(baseName).push(entry);
         });
 
-        modelMap.forEach((variants, name) => {
+        modelMap.forEach(async (variants, name) => {
             const wrapper = document.createElement('div');
             const rawFirstChar = name[0]?.toUpperCase() || '#';
             const firstLetter = /^[A-Z]$/.test(rawFirstChar) ? rawFirstChar : '#';
@@ -2607,19 +2612,19 @@ export async function initializeSettings(scrobbler, player, api, ui) {
                 const subList = document.createElement('div');
                 subList.className = 'autoeq-db-sub-list';
 
-                variants.forEach((entry) => {
+                for (const entry of variants) {
                     const subItem = document.createElement('div');
                     subItem.className = 'autoeq-db-sub-item';
                     // Extract source from parentheses
-                    const sourceMatch = entry.name.match(/\(([^)]+)\)\s*$/);
+                    const sourceMatch = await entry.name.match(/\(([^)]+)\)\s*$/);
                     const source = sourceMatch ? sourceMatch[1] : entry.type;
                     subItem.innerHTML = `<span>${entry.name}</span><span class="sub-source">${source}</span>`;
-                    subItem.addEventListener('click', (e) => {
+                    subItem.addEventListener('click', async (e) => {
                         e.stopPropagation();
-                        loadHeadphoneEntry(entry);
+                        await loadHeadphoneEntry(entry);
                     });
                     subList.appendChild(subItem);
-                });
+                }
 
                 wrapper.appendChild(subList);
 
@@ -4765,7 +4770,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
     if (initParaProfiles) initParaProfiles.style.display = 'none';
 
     // Auto-load headphone database
-    loadFullDatabase();
+    await loadFullDatabase();
 
     // Auto-load default popular headphone if no saved profile is active
     const activeProfileId = equalizerSettings.getActiveAutoEQProfile();
@@ -4788,7 +4793,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
             if (autoeqRunBtn) autoeqRunBtn.disabled = false;
             requestAnimationFrame(drawAutoEQGraph);
         } else if (POPULAR_HEADPHONES.length > 0) {
-            loadHeadphoneEntry(POPULAR_HEADPHONES[0]);
+            await loadHeadphoneEntry(POPULAR_HEADPHONES[0]);
         }
     }
 
@@ -5346,7 +5351,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
             const currentSource = homePageSettings.getEditorsPicksSource();
             editorsPicksSourceSelect.value = currentSource;
         }
-        populateEditorsPicksSource();
+        await populateEditorsPicksSource();
 
         editorsPicksSourceSelect.addEventListener('change', (e) => {
             homePageSettings.setEditorsPicksSource(e.target.value);
@@ -5721,7 +5726,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
             try {
                 await syncManager.clearCloudData();
                 alert('Cloud data cleared successfully.');
-                authManager.signOut();
+                await authManager.signOut();
             } catch (error) {
                 console.error('Failed to clear cloud data:', error);
                 alert('Failed to clear cloud data: ' + error.message);
@@ -6257,7 +6262,7 @@ function initializeFontSettings() {
     });
 
     // Google Fonts apply
-    fontGoogleApply.addEventListener('click', () => {
+    fontGoogleApply.addEventListener('click', async () => {
         const input = fontGoogleInput.value.trim();
         if (!input) return;
 
@@ -6276,16 +6281,16 @@ function initializeFontSettings() {
             // Not a URL, treat as font name
         }
 
-        fontSettings.loadGoogleFont(fontName);
+        await fontSettings.loadGoogleFont(fontName);
     });
 
     // URL font apply
-    fontUrlApply.addEventListener('click', () => {
+    fontUrlApply.addEventListener('click', async () => {
         const url = fontUrlInput.value.trim();
         const name = fontUrlName.value.trim();
         if (!url) return;
 
-        fontSettings.loadFontFromUrl(url, name || 'CustomFont');
+        await fontSettings.loadFontFromUrl(url, name || 'CustomFont');
     });
 
     // File upload
