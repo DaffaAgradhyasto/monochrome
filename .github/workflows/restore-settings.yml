@@ -1,4 +1,4 @@
-name: Restore js/settings.js
+name: Restore files from clean commit 235bfcc
 
 on:
   workflow_dispatch:
@@ -15,11 +15,11 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Restore js/settings.js from commit 235bfcc
+      - name: Restore files from commit 235bfcc
         run: |
-          git checkout 235bfcc74cafbcd25fcc151b132ee08db3d22a21 -- js/settings.js
+          git checkout 235bfcc74cafbcd25fcc151b132ee08db3d22a21 -- js/settings.js js/ui.js
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add js/settings.js
-          git commit -m "fix: restore js/settings.js from working commit 235bfcc (fix Vercel build error)"
+          git add js/settings.js js/ui.js
+          git commit -m "fix: restore js/settings.js and js/ui.js from working commit 235bfcc"
           git push
