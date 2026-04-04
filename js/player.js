@@ -552,7 +552,26 @@ export class Player {
                     if (streamUrl.includes('.mpd') || streamUrl.includes('.m3u8')) {
                         if (this.shakaInitialized && this.shakaPlayer && typeof this.shakaPlayer.preload === 'function') {
                             try {
-                                const preloadManager = await this.shakaPlayer.preload(streamUrl);
+                                let preloadConfig = undefined;
+                                if (typeof this.shakaPlayer.getConfiguration === 'function') {
+                                    preloadConfig = this.shakaPlayer.getConfiguration();
+                                    const stats = typeof this.shakaPlayer.getStats === 'function' ? this.shakaPlayer.getStats() : null;
+                                    if (stats && stats.estimatedBandwidth) {
+                                        preloadConfig.abr.defaultBandwidthEstimate = stats.estimatedBandwidth;
+                                    }
+                                    
+                                    // Lock the preload to the exact current audio codec to prevent ABR mismatch,
+                                    // which forces the player to discard and re-fetch chunks on slow connections.
+                                    preloadConfig.abr.enabled = false;
+                                    try {
+                                        const variants = typeof this.shakaPlayer.getVariantTracks === 'function' ? this.shakaPlayer.getVariantTracks() : [];
+                                        const activeVariant = variants.find(v => v.active);
+                                        if (activeVariant && activeVariant.audioCodec) {
+                                            preloadConfig.preferredAudioCodecs = [activeVariant.audioCodec];
+                                        }
+                                    } catch (e) {}
+                                }
+                                const preloadManager = await this.shakaPlayer.preload(streamUrl, null, null, preloadConfig);
                                 streamInfo.preloadManager = preloadManager;
                             } catch (e) {
                                 // Ignore preload errors, will just load fresh
