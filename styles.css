@@ -2209,6 +2209,24 @@ input[type='search']::-webkit-search-cancel-button {
     /* Enforce square aspect ratio */
 }
 
+/* Cover grid untuk playlist (kolase 4 gambar) */
+.card-image-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    width: 100%;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: var(--radius);
+}
+
+.card-image-grid img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
 .card:hover .card-image-wrapper {
     box-shadow: var(--shadow-xl);
 }
