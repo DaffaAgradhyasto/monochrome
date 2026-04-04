@@ -1,4 +1,4 @@
-import { pb, syncManager } from './accounts/pocketbase.js';
+import { syncManager } from './accounts/pocketbase.js';
 import { authManager } from './accounts/auth.js';
 import { Player } from './player.js';
 import { navigate } from './router.js';
