@@ -15,7 +15,13 @@ jobs:
           node-version: '22'
       - name: Install deps
         run: npm install --legacy-peer-deps --include=dev
-      - name: Build
-        run: npx vite build 2>&1
+      - name: Check vite version
+        run: ./node_modules/.bin/vite --version
+      - name: Build (verbose)
+        run: |
+          set -x
+          node --version
+          ./node_modules/.bin/vite build || (echo "BUILD FAILED with exit $?" && exit 1)
         env:
           NODE_ENV: development
+          DEBUG: vite:*
