@@ -2153,19 +2153,15 @@ input[type='search']::-webkit-search-cancel-button {
 
 .settings-tab-content {
     display: none;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: visible;
 }
 
 .settings-tab-content.active {
     display: block;
     animation: fade-in-slide-up 0.4s var(--ease-out-back);
-}
-
-/* Prevent settings tab content from overflowing on small displays (fixes #313) */
-.settings-tab-content {
-    max-width: 100%;
-    min-width: 0;
-    overflow-x: auto;
-    overflow-y: visible;
 }
 
 .card-grid {
@@ -4626,6 +4622,7 @@ input:checked + .slider::before {
     justify-content: center;
     gap: 1rem;
     margin-top: 1rem;
+    position: relative;
 }
 
 .fs-volume-btn {
@@ -6358,10 +6355,6 @@ img[src=''] {
 .fs-quality-option.active {
     background: var(--primary);
     color: white;
-}
-
-#fullscreen-cover-overlay.is-video-mode .fullscreen-volume-container {
-    margin-top: 0.5rem;
 }
 
 #fullscreen-cover-overlay.ui-hidden .fullscreen-main-view,
