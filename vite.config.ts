@@ -6,7 +6,6 @@ import uploadPlugin from './vite-plugin-upload.js';
 import blobAssetPlugin from './vite-plugin-blob.js';
 import svgUse from './vite-plugin-svg-use.js';
 import { execSync } from 'child_process';
-import { playwright } from '@vitest/browser-playwright';
 
 function getGitCommitHash() {
     try {
@@ -24,7 +23,6 @@ export default defineConfig((_options) => {
             // https://vitest.dev/guide/browser/
             browser: {
                 enabled: true,
-                provider: playwright(),
                 headless: !!process.env.HEADLESS,
                 instances: [{ browser: 'chromium' }],
             },
