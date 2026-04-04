@@ -480,15 +480,35 @@ export async function loadProfile(username) {
 
             const card = document.createElement('div');
             card.className = 'card';
-            card.innerHTML = `
-                <div class="card-image-wrapper">
-                    <img src="${playlist.cover || '/assets/appicon.png'}" class="card-image" loading="lazy" alt="${playlist.name}">
-                </div>
-                <div class="card-info">
-                    <div class="card-title">${playlist.name}</div>
-                    <div class="card-subtitle">${playlist.numberOfTracks || 0} tracks</div>
-                </div>
-            `;
+// Generate cover dari playlist.images, playlist.tracks, atau playlist.cover
+                const coverSrcs = playlist.cover
+                    ? [api.getCoverUrl(playlist.cover)]
+                    : (playlist.images && playlist.images.length > 0
+                        ? playlist.images.map(c => api.getCoverUrl(c))
+                        : (playlist.tracks || []).reduce((acc, t) => {
+                            const c = t.album?.cover;
+                            if (c && !acc.find(x => x === api.getCoverUrl(c)) && acc.length < 4) acc.push(api.getCoverUrl(c));
+                            return acc;
+                          }, []));
+
+                let coverHtml;
+                if (coverSrcs.length >= 4) {
+                    coverHtml = `<div class="card-image-grid">${coverSrcs.slice(0,4).map(s=>`<img src="${s}" loading="lazy" alt="">`).join('')}</div>`;
+                } else if (coverSrcs.length > 0) {
+                    coverHtml = `<img src="${coverSrcs[0]}" class="card-image" loading="lazy" alt="${playlist.name}">`;
+                } else {
+                    coverHtml = `<img src="/assets/appicon.png" class="card-image" loading="lazy" alt="${playlist.name}">`;
+                }
+
+                card.innerHTML = `
+                    <div class="card-image-wrapper">
+                        ${coverHtml}
+                    </div>
+                    <div class="card-info">
+                        <div class="card-title">${playlist.name}</div>
+                        <div class="card-subtitle">${playlist.numberOfTracks || 0} tracks</div>
+                    </div>
+                `;
             card.onclick = () => {
                 window.location.hash = `/userplaylist/${playlist.id}`;
             };
