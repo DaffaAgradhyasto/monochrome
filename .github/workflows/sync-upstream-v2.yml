@@ -42,6 +42,7 @@ env:
             images/monochrome-logo.svg
             public/manifest.json
                   js/storage.js
+                    js/settings.js
 
 jobs:
   toggle:
