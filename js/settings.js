@@ -42,7 +42,7 @@ import { audioContextManager, EQ_PRESETS } from './audio-context.js';
 import { db } from './db.js';
 import { authManager } from './accounts/auth.js';
 import { syncManager } from './accounts/pocketbase.js';
-import { containerFormats, customFormats } from './ffmpegFormats.ts';
+import { containerFormats, customFormats } from './ffmpegFormats.js';
 import { modernSettings } from './ModernSettings.js';
 import { queueSyncManager } from './queue-sync.js';
 
