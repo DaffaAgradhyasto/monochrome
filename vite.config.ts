@@ -6,7 +6,6 @@ import uploadPlugin from './vite-plugin-upload.js';
 import blobAssetPlugin from './vite-plugin-blob.js';
 import svgUse from './vite-plugin-svg-use.js';
 import { execSync } from 'child_process';
-import { playwright } from '@vitest/browser-playwright';
 
 function getGitCommitHash() {
     try {
@@ -16,23 +15,13 @@ function getGitCommitHash() {
     }
 }
 
-export default defineConfig((_options) => {
+export default defineConfig(({ mode }) => {
     const commitHash = getGitCommitHash();
 
     return {
-        test: {
-            // https://vitest.dev/guide/browser/
-            browser: {
-                enabled: true,
-                provider: playwright(),
-                headless: !!process.env.HEADLESS,
-                instances: [{ browser: 'chromium' }],
-            },
-        },
         base: './',
         define: {
             __COMMIT_HASH__: JSON.stringify(commitHash),
-            __VITEST__: !!process.env.VITEST,
         },
         worker: {
             format: 'es',
@@ -42,7 +31,6 @@ export default defineConfig((_options) => {
                 '!lucide': '/node_modules/lucide-static/icons',
                 '!simpleicons': '/node_modules/simple-icons/icons',
                 '!': '/node_modules',
-
                 events: '/node_modules/events/events.js',
                 pocketbase: '/node_modules/pocketbase/dist/pocketbase.es.js',
                 stream: path.resolve(__dirname, 'stream-stub.js'), // Stub for stream module
@@ -55,20 +43,16 @@ export default defineConfig((_options) => {
             fs: {
                 allow: ['.', 'node_modules'],
                 // host: true,
-                // allowedHosts: ['<your_tailscale_hostname>'], // e.g. pi5.tailf5f622.ts.net
+                // allowedHosts: [''],
             },
         },
-        // preview: {
-        //     host: true,
-        //     allowedHosts: ['<your_tailscale_hostname>'], // e.g. pi5.tailf5f622.ts.net
-        // },
         build: {
             outDir: 'dist',
             emptyOutDir: true,
             sourcemap: true,
-                rollupOptions: {
-      external: [/\/desktop\//],
-    },
+            rollupOptions: {
+                external: [/\/desktop\//],
+            },
         },
         plugins: [
             authGatePlugin(),
@@ -81,7 +65,6 @@ export default defineConfig((_options) => {
                     globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
                     cleanupOutdatedCaches: true,
                     maximumFileSizeToCacheInBytes: 3 * 1024 * 1024, // 3 MiB limit
-                    // Define runtime caching strategies
                     runtimeCaching: [
                         {
                             urlPattern: ({ request }) => request.destination === 'image',
@@ -104,13 +87,13 @@ export default defineConfig((_options) => {
                                     maxEntries: 50,
                                     maxAgeSeconds: 60 * 24 * 60 * 60, // 60 Days
                                 },
-                                rangeRequests: true, // Support scrubbing
+                                rangeRequests: true,
                             },
                         },
                     ],
                 },
                 includeAssets: ['discord.html'],
-                manifest: false, // Use existing public/manifest.json
+                manifest: false,
             }),
         ],
     };
