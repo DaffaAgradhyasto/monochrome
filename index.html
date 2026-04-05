@@ -158,32 +158,36 @@
                         alt="Album Cover"
                     />
 
-                            <div class="fullscreen-track-info">
-                                <div class="fullscreen-track-text">
-                                    <h2 id="fullscreen-track-title"></h2>
-                                    <h3 id="fullscreen-track-artist"></h3>
-                                </div>
-                                <div class="fullscreen-actions">
-                                    <button id="fs-like-btn" class="btn-icon like-btn" title="Like">
-                                        <use svg="!lucide/heart.svg" class="heart-icon" size="24" />
-                                    </button>
-                                    <button id="fs-add-playlist-btn" class="btn-icon" title="Add to Playlist">
-                                        <use svg="!lucide/square-pen.svg" size="24" />
-                                    </button>
-                                    <button id="fs-download-btn" class="btn-icon" title="Download">
-                                        <use svg="!lucide/download.svg" size="24" />
-                                    </button>
-                                    <button id="fs-cast-btn" class="btn-icon" title="Cast">
-                                        <use svg="!lucide/cast.svg" size="24" />
-                                    </button>
-                                    <button id="fs-queue-btn" class="btn-icon" title="Queue">
-                                        <use svg="!lucide/list.svg" size="24" />
-                                    </button>
-                                </div>
-                                <div id="fullscreen-next-track" style="display: none">
-                                    <span class="label">Up Next</span>
-                                    <span class="value"></span>
-                                </div>
+                    <div class="fullscreen-track-info">
+                        <h2 id="fullscreen-track-title"></h2>
+                        <h3 id="fullscreen-track-artist"></h3>
+                        <div class="fullscreen-actions">
+                            <button id="fs-like-btn" class="btn-icon like-btn" title="Like">
+                                <use svg="!lucide/heart.svg" class="heart-icon" size="24" />
+                            </button>
+                            <button id="fs-add-playlist-btn" class="btn-icon" title="Add to Playlist">
+                                <use svg="!lucide/square-pen.svg" size="24" />
+                            </button>
+                            <button id="fs-download-btn" class="btn-icon" title="Download">
+                                <use svg="!lucide/download.svg" size="24" />
+                            </button>
+                            <button id="fs-cast-btn" class="btn-icon" title="Cast">
+                                <use svg="!lucide/cast.svg" size="24" />
+                            </button>
+                            <button id="fs-queue-btn" class="btn-icon" title="Queue">
+                                <use svg="!lucide/list.svg" size="24" />
+                            </button>
+                        </div>
+                        <div id="fullscreen-next-track" style="display: none">
+                            <span class="label">Up Next: </span>
+                            <span class="value"></span>
+                        </div>
+                    </div>
+                    <div class="fullscreen-controls">
+                        <div class="fullscreen-progress-container">
+                            <span id="fs-current-time">0:00</span>
+                            <div id="fs-progress-bar" class="progress-bar">
+                                <div id="fs-progress-fill" class="progress-fill"></div>
                             </div>
                             <span id="fs-total-duration">0:00</span>
                         </div>
@@ -244,14 +248,6 @@
                                 <div id="fs-volume-fill" class="fs-volume-fill"></div>
                             </div>
                         </div>
-
-                        <aside id="fullscreen-lyrics-pane" class="fullscreen-lyrics-pane">
-                            <div class="fullscreen-lyrics-shell">
-                                <div id="fullscreen-lyrics-content" class="fullscreen-lyrics-content">
-                                    <div class="fullscreen-lyrics-empty">Lyrics appear here.</div>
-                                </div>
-                            </div>
-                        </aside>
                     </div>
                 </div>
             </div>

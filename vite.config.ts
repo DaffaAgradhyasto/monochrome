@@ -5,7 +5,6 @@ import path from 'path';
 import uploadPlugin from './vite-plugin-upload.js';
 import blobAssetPlugin from './vite-plugin-blob.js';
 import svgUse from './vite-plugin-svg-use.js';
-import purgecss from 'vite-plugin-purgecss';
 import { execSync } from 'child_process';
 
 function getGitCommitHash() {
@@ -61,9 +60,6 @@ export default defineConfig(({ mode }) => {
     },
         },
         plugins: [
-            purgecss({
-                variables: true,
-            }),
             authGatePlugin(),
             uploadPlugin(),
             blobAssetPlugin(),
