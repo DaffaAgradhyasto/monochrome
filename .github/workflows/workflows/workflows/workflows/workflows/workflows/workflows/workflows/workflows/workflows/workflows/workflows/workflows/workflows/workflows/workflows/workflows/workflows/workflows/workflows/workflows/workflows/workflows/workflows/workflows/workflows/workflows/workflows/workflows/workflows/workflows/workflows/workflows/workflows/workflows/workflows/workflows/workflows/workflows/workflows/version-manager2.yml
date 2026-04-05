@@ -1,4 +1,4 @@
-name: Version Manager (Backup, Restore & Delete)
+name: Version Manager 2 (Backup, Restore & Delete)
 
 on:
   push:
@@ -44,7 +44,7 @@ jobs:
           SHA="${{ github.sha }}"
           TAG="backup/$(date -u +"%Y%m%d-%H%M%S")-${SHA:0:7}"
           git tag "$TAG" "$SHA" -m "Auto-backup"
-          git push origin "$TAG" || echo "Tag already exists, skipping"
+          git push origin "$TAG"
           echo "BACKUP_TAG=$TAG" >> $GITHUB_ENV
       - run: |
           echo "## Auto Backup" >> $GITHUB_STEP_SUMMARY
@@ -83,20 +83,25 @@ jobs:
         run: |
           [ -n "${{ github.event.inputs.commit_sha }}" ] || { echo "SHA kosong"; exit 1; }
           [ "${{ github.event.inputs.confirm }}" = "YES" ] || { echo "Konfirmasi diperlukan"; exit 1; }
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
+
       - run: git fetch --tags --force
+
       - name: Setup Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
       - name: Verifikasi SHA
         run: |
           FULL=$(git rev-parse "${{ github.event.inputs.commit_sha }}" 2>/dev/null) || { echo "SHA tidak ditemukan"; exit 1; }
           echo "TARGET=$FULL" >> $GITHUB_ENV
           echo "SHA ditemukan: $FULL"
+
       - name: Safety Backup
         run: |
           CUR=$(git rev-parse HEAD)
@@ -104,17 +109,38 @@ jobs:
           git tag "$TAG" HEAD -m "Safety backup sebelum restore"
           git push origin "$TAG"
           echo "SAFETY=$TAG" >> $GITHUB_ENV
+
       - name: Force Reset ke target SHA
         run: |
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+
+          # Simpan isi .github/workflows/ saat ini sebelum reset
+          mkdir -p /tmp/workflows_backup
+          cp -r .github/workflows/. /tmp/workflows_backup/
+
+          # Reset ke target SHA
           git reset --hard ${{ env.TARGET }}
+
+          # Pulihkan .github/workflows/ dari versi saat ini (sebelum reset)
+          # agar tidak memerlukan 'workflows' permission saat push
+          mkdir -p .github/workflows
+          cp -r /tmp/workflows_backup/. .github/workflows/
+
+          # Tambahkan perubahan workflows ke staging
+          git add .github/workflows/
+
+          # Commit jika ada perubahan di workflows (karena restore mungkin mengubahnya)
+          git diff --cached --quiet || git commit --amend --no-edit
+
           git push --force origin main
           echo "Restore berhasil ke: ${{ env.TARGET }}"
+
       - name: Summary
         run: |
           echo "## Restore Selesai" >> $GITHUB_STEP_SUMMARY
           echo "Target SHA: ${{ env.TARGET }}" >> $GITHUB_STEP_SUMMARY
           echo "Safety Backup: ${{ env.SAFETY }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Catatan:** File .github/workflows/ dipertahankan dari versi terkini agar restore berhasil." >> $GITHUB_STEP_SUMMARY
 
   delete-version:
     name: Hapus Tag Backup
