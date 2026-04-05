@@ -2955,4 +2955,3 @@ export const fullscreenCoverTiltSpeedSettings = {
     },
     setValue(val) { localStorage.setItem(this.STORAGE_KEY, val); },
 };
-};
