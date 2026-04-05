@@ -5751,5 +5751,216 @@
             </footer>
         </div>
         <script type="module" src="/js/app.js"></script>
+        <div id="reset-password-page" style="display: none">
+            <style>
+                *,
+                *::before,
+                *::after {
+                    box-sizing: border-box;
+                    margin: 0;
+                    padding: 0;
+                }
+                body.reset-password-body {
+                    font-family:
+                        'Inter',
+                        -apple-system,
+                        BlinkMacSystemFont,
+                        'Segoe UI',
+                        Roboto,
+                        sans-serif;
+                    background: #0a0a0a;
+                    color: #e0e0e0;
+                    min-height: 100vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                body.reset-password-body > *:not(#reset-password-page) {
+                    display: none !important;
+                }
+                #reset-password-page {
+                    width: 100%;
+                    max-width: 380px;
+                    padding: 2rem;
+                }
+                .reset-password-title {
+                    font-size: 1.5rem;
+                    font-weight: 600;
+                    letter-spacing: -0.02em;
+                    color: #fff;
+                    text-align: center;
+                    margin-bottom: 2.5rem;
+                }
+                .reset-password-btn {
+                    width: 100%;
+                    padding: 0.75rem 1rem;
+                    border: 1px solid #2a2a2a;
+                    border-radius: 8px;
+                    background: #151515;
+                    color: #e0e0e0;
+                    font-size: 0.925rem;
+                    font-family: inherit;
+                    cursor: pointer;
+                    transition:
+                        background 0.15s,
+                        border-color 0.15s;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.5rem;
+                }
+                .reset-password-btn:hover {
+                    background: #1e1e1e;
+                    border-color: #3a3a3a;
+                }
+                .reset-password-btn:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+                .reset-password-btn-primary {
+                    background: #fff;
+                    color: #0a0a0a;
+                    border-color: #fff;
+                    font-weight: 600;
+                }
+                .reset-password-btn-primary:hover {
+                    background: #e0e0e0;
+                    border-color: #e0e0e0;
+                }
+                .reset-password-form-group {
+                    margin-bottom: 1rem;
+                }
+                .reset-password-form-group input {
+                    width: 100%;
+                    padding: 0.75rem 1rem;
+                    border: 1px solid #2a2a2a;
+                    border-radius: 8px;
+                    background: #151515;
+                    color: #e0e0e0;
+                    font-size: 0.925rem;
+                    font-family: inherit;
+                    outline: none;
+                    transition: border-color 0.15s;
+                }
+                .reset-password-form-group input:focus {
+                    border-color: #555;
+                }
+                .reset-password-message {
+                    padding: 0.75rem 1rem;
+                    border-radius: 8px;
+                    font-size: 0.85rem;
+                    margin-bottom: 1rem;
+                    display: none;
+                }
+                .reset-password-error {
+                    background: #1a0000;
+                    border: 1px solid #3a1111;
+                    color: #ff6b6b;
+                }
+                .reset-password-success {
+                    background: #001a00;
+                    border: 1px solid #113a11;
+                    color: #6bff6b;
+                }
+                .reset-password-spinner {
+                    width: 18px;
+                    height: 18px;
+                    border: 2px solid transparent;
+                    border-top-color: currentColor;
+                    border-radius: 50%;
+                    animation: reset-password-spin 0.6s linear infinite;
+                    display: none;
+                }
+                @keyframes reset-password-spin {
+                    to {
+                        transform: rotate(360deg);
+                    }
+                }
+            </style>
+            <h1 class="reset-password-title">Reset your Monochrome password</h1>
+            <div id="reset-password-error" class="reset-password-message reset-password-error"></div>
+            <div id="reset-password-success" class="reset-password-message reset-password-success"></div>
+            <form id="reset-password-form">
+                <div class="reset-password-form-group">
+                    <input
+                        type="password"
+                        id="reset-password-input"
+                        placeholder="New Password"
+                        required
+                        minlength="8"
+                    />
+                </div>
+                <div class="reset-password-form-group">
+                    <input
+                        type="password"
+                        id="reset-password-confirm"
+                        placeholder="Confirm New Password"
+                        required
+                        minlength="8"
+                    />
+                </div>
+                <button type="submit" id="reset-password-submit" class="reset-password-btn reset-password-btn-primary">
+                    <span id="reset-password-btn-text">Reset Password</span>
+                    <span id="reset-password-spinner" class="reset-password-spinner"></span>
+                </button>
+            </form>
+            <script type="module">
+                import { Client, Account } from 'appwrite';
+                const getEndpoint = () => {
+                    const hostname = window.location.hostname;
+                    if (hostname.endsWith('monochrome.tf') || hostname === 'monochrome.tf') {
+                        return 'https://auth.monochrome.tf/v1';
+                    }
+                    return 'https://auth.samidy.com/v1';
+                };
+                const client = new Client().setEndpoint(getEndpoint()).setProject('auth-for-monochrome');
+                const account = new Account(client);
+                const urlParams = new URLSearchParams(window.location.search);
+                const userId = urlParams.get('userId');
+                const secret = urlParams.get('secret');
+                const errorEl = document.getElementById('reset-password-error');
+                const successEl = document.getElementById('reset-password-success');
+                const form = document.getElementById('reset-password-form');
+                const btn = document.getElementById('reset-password-submit');
+                const btnText = document.getElementById('reset-password-btn-text');
+                const spinner = document.getElementById('reset-password-spinner');
+                if (!userId || !secret) {
+                    errorEl.textContent = 'Invalid or missing password reset link.';
+                    errorEl.style.display = 'block';
+                    form.style.display = 'none';
+                }
+                form.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    errorEl.style.display = 'none';
+                    successEl.style.display = 'none';
+                    const password = document.getElementById('reset-password-input').value;
+                    const passwordConfirm = document.getElementById('reset-password-confirm').value;
+                    if (password !== passwordConfirm) {
+                        errorEl.textContent = 'Passwords do not match.';
+                        errorEl.style.display = 'block';
+                        return;
+                    }
+                    btn.disabled = true;
+                    btnText.style.display = 'none';
+                    spinner.style.display = 'inline-block';
+                    try {
+                        await account.updateRecovery(userId, secret, password, passwordConfirm);
+                        successEl.textContent = 'Password reset successfully. Redirecting...';
+                        successEl.style.display = 'block';
+                        form.style.display = 'none';
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 3000);
+                    } catch (err) {
+                        errorEl.textContent = err.message || 'Failed to reset password.';
+                        errorEl.style.display = 'block';
+                        btn.disabled = false;
+                        btnText.style.display = 'inline';
+                        spinner.style.display = 'none';
+                    }
+                });
+                document.body.classList.add('reset-password-body');
+            </script>
+        </div>
     </body>
 </html>

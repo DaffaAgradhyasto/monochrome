@@ -122,6 +122,9 @@ export function createRouter(ui) {
                     await loadProfile(decodeURIComponent(param.slice(1)));
                 }
                 break;
+            case 'reset-password':
+                document.getElementById('reset-password-page').style.display = 'block';
+                break;
             default:
                 ui.showPage(page);
                 break;
