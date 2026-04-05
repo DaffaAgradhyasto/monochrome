@@ -562,7 +562,7 @@ export class UIRenderer {
 
         const cardContent = `
             <div class="card-info">
-                <h4 class="card-title">${title}</h4>
+                <h3 class="card-title">${title}</h3>
                 ${subtitle ? `<p class="card-subtitle">${subtitle}</p>` : ''}
             </div>`;
 
@@ -734,7 +734,7 @@ export class UIRenderer {
                 album.cover,
                 escapeHtml(album.title),
                 'card-image',
-                'lazy',
+                album._lazy === false ? 'eager' : 'lazy',
                 album.videoCoverUrl
             ),
             actionButtonsHTML: `
@@ -806,7 +806,7 @@ export class UIRenderer {
             href: `/artist/${artist.id}`,
             title: escapeHtml(artist.name),
             subtitle: '',
-            imageHTML: `<img src="${this.api.getArtistPictureUrl(artist.picture)}" alt="${escapeHtml(artist.name)}" class="card-image" loading="lazy">`,
+            imageHTML: `<img src="${this.api.getArtistPictureUrl(artist.picture)}" alt="${escapeHtml(artist.name)}" class="card-image" loading="${artist._lazy === false ? 'eager' : 'lazy'}">`,
             actionButtonsHTML: `
                 <button class="like-btn card-like-btn" data-action="toggle-like" data-type="artist" title="Add to Liked">
                     ${this.createHeartIcon(false)}
@@ -2742,6 +2742,7 @@ export class UIRenderer {
                                     audioQuality: item.audioQuality,
                                     mediaMetadata: item.mediaMetadata,
                                     type: 'ALBUM',
+                                    _lazy: cardsHTML.length >= 6,
                                 };
                                 cardsHTML.push(this.createAlbumCardHTML(album));
                                 itemsToStore.push({ el: null, data: album, type: 'album' });
@@ -2749,6 +2750,7 @@ export class UIRenderer {
                                 // Fall back to API call for legacy format
                                 const result = await this.api.getAlbum(item.id);
                                 if (result && result.album) {
+                                    result.album._lazy = cardsHTML.length >= 6;
                                     cardsHTML.push(this.createAlbumCardHTML(result.album));
                                     itemsToStore.push({ el: null, data: result.album, type: 'album' });
                                 }
@@ -2771,6 +2773,7 @@ export class UIRenderer {
                                         releaseDate: item.releaseDate,
                                         type: 'ALBUM',
                                         _href: `/userplaylist/${item.id}`,
+                                        _lazy: cardsHTML.length >= 6,
                                     })
                                 );
                                 itemsToStore.push({ el: null, data: playlist, type: 'user-playlist' });
@@ -2782,6 +2785,7 @@ export class UIRenderer {
                                     id: item.id,
                                     name: item.name,
                                     picture: item.picture,
+                                    _lazy: cardsHTML.length >= 6,
                                 };
                                 cardsHTML.push(this.createArtistCardHTML(artist));
                                 itemsToStore.push({ el: null, data: artist, type: 'artist' });
@@ -2789,6 +2793,7 @@ export class UIRenderer {
                                 // Fall back to API call
                                 const artist = await this.api.getArtist(item.id);
                                 if (artist) {
+                                    artist._lazy = cardsHTML.length >= 6;
                                     cardsHTML.push(this.createArtistCardHTML(artist));
                                     itemsToStore.push({ el: null, data: artist, type: 'artist' });
                                 }

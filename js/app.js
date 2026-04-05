@@ -155,14 +155,21 @@ async function fetchcontributors() {
             const userDIV = document.createElement('div');
             userDIV.innerHTML = `
             <a href="${user.html_url}" target="_blank">
-            <img src="${user.avatar_url}" alt="${user.login}" width="50" style="border-radius: 50%;">
+            <img src="${user.avatar_url}&s=50" alt="${user.login}" width="50" height="50" style="border-radius: 50%;">
             <span>${user.login}</span>
             <span class="contrib">Contributions: ${user.contributions}</span>
             </a>
             `;
             con.appendChild(userDIV);
         });
-    } catch (e) {}
+    } catch (e) {
+        const con = document.querySelector('.about-contributors-failed');
+        const userDIV = document.createElement('div');
+        userDIV.innerHTML = `
+        <h4 style="text-align: center; color: var(--muted-foreground);">Failed to Fetch Contributor List</h4>
+        `;
+        con.appendChild(userDIV);
+    }
 }
 
 async function loadMetadataModule() {
@@ -3032,7 +3039,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (user) {
                 const data = await syncManager.getUserData();
                 if (data && data.profile && data.profile.avatar_url) {
-                    headerAccountImg.src = data.profile.avatar_url;
+                    headerAccountImg.src = data.profile.avatar_url + '&s=100';
                     headerAccountImg.style.display = 'block';
                     headerAccountIcon.style.display = 'none';
                     return;
