@@ -245,3 +245,6 @@ export class AuthManager {
 }
 
 export const authManager = new AuthManager();
+
+// Expose to window for auth-gate.js
+window.authManager = authManager;
