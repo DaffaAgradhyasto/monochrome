@@ -131,6 +131,39 @@ async function loadDownloadsModule() {
     return downloadsModule;
 }
 
+async function fetchcontributors() {
+    try {
+        const response = await fetch('https://api.samidy.com/api/contributors');
+        if (!response.ok) return;
+        const data1 = await response.json();
+
+        const data = data1.filter(
+            (user) => user.type !== 'Bot' && user.login !== 'edidealt' && user.login !== 'satanyahoo'
+        );
+
+        const edideaur = data.find((user) => user.login === 'edideaur');
+        if (edideaur) {
+            edideaur.contributions += data1.find((u) => u.login === 'edidealt')?.contributions || 0;
+            edideaur.contributions += data1.find((u) => u.login === 'satanyahoo')?.contributions || 0;
+        }
+
+        const con = document.querySelector('.about-contributors');
+        if (!con) return;
+
+        data.forEach((user) => {
+            const userDIV = document.createElement('div');
+            userDIV.innerHTML = `
+            <a href="${user.html_url}" target="_blank">
+            <img src="${user.avatar_url}" alt="${user.login}" width="50" style="border-radius: 50%;">
+            <span>${user.login}</span>
+            <span class="contrib">Contributions: ${user.contributions}</span>
+            </a>
+            `;
+            con.appendChild(userDIV);
+        });
+    } catch (e) {}
+}
+
 async function loadMetadataModule() {
     if (!metadataModule) {
         metadataModule = await import('./metadata.js');
@@ -260,7 +293,7 @@ function initializeKeyboardShortcuts(player, _audioPlayer) {
         },
         lyrics: () => {
             trackKeyboardShortcut('L');
-            document.querySelector('.now-playing-bar .cover')?.click();
+            document.getElementById('toggle-lyrics-btn')?.click();
         },
         search: () => {
             trackKeyboardShortcut('/');
@@ -410,6 +443,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Populate commit info
     {
         const repo = 'https://github.com/monochrome-music/monochrome';
+        // eslint-disable-next-line no-undef
         const hash = typeof __COMMIT_HASH__ !== 'undefined' ? __COMMIT_HASH__ : 'dev';
         const commitLink =
             hash !== 'dev' && hash !== 'unknown'
@@ -473,7 +507,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await Player.initialize(audioPlayer, MusicAPI.instance, currentQuality);
 
     // Initialize tracker
-    initTracker();
+    initTracker().catch(console.error);
 
     // Initialize AI chat (set default key if not already configured)
     initAiChat();
@@ -628,8 +662,8 @@ document.addEventListener('DOMContentLoaded', async () => {
      * having to manually re-scan.
      *
      * When called with a `blob` and `filename` (single-track download case) it
-     * performs a cheap partial update — reading metadata only from that one file
-     * and inserting it into the existing cache — so the full folder does not need
+     * performs a cheap partial update - reading metadata only from that one file
+     * and inserting it into the existing cache - so the full folder does not need
      * to be re-walked.  When called with no arguments (bulk download case, or when
      * `localFilesCache` has never been populated) it falls back to a full rescan.
      */
@@ -663,7 +697,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // checks for a saved handle and (in browser mode) requests read permission,
     // so this is a silent no-op when no folder is configured or permission is not
     // yet granted.
-    scanLocalMediaFolder();
+    scanLocalMediaFolder().catch(console.error);
 
     const scrobbler = new MultiScrobbler();
     window.monochromeScrobbler = scrobbler;
@@ -1122,9 +1156,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    document.getElementById('download-current-btn')?.addEventListener('click', () => {
+    document.getElementById('download-current-btn')?.addEventListener('click', async () => {
         if (Player.instance.currentTrack) {
-            handleTrackAction(
+            await handleTrackAction(
                 'download',
                 Player.instance.currentTrack,
                 Player.instance,
@@ -1555,14 +1589,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (editingId) {
                     // Edit
                     const cover = document.getElementById('playlist-cover-input').value.trim();
-                    db.getPlaylist(editingId).then(async (playlist) => {
+                    await db.getPlaylist(editingId).then(async (playlist) => {
                         if (playlist) {
                             playlist.name = name;
                             playlist.cover = cover;
                             playlist.description = description;
                             await handlePublicStatus(playlist);
                             await db.performTransaction('user_playlists', 'readwrite', (store) => store.put(playlist));
-                            syncManager.syncUserPlaylist(playlist, 'update');
+                            await syncManager.syncUserPlaylist(playlist, 'update');
                             UIRenderer.instance.renderLibraryPage();
                             // Also update current page if we are on it
                             if (window.location.pathname === `/userplaylist/${editingId}`) {
@@ -2083,7 +2117,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         console.log(`Added ${tracks.length} tracks (including pending)`);
                     }
 
-                    db.createPlaylist(name, tracks, cover, description).then(async (playlist) => {
+                    await db.createPlaylist(name, tracks, cover, description).then(async (playlist) => {
                         await handlePublicStatus(playlist);
                         // Update DB again with isPublic flag
                         await db.performTransaction('user_playlists', 'readwrite', (store) => store.put(playlist));
@@ -2106,7 +2140,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (e.target.closest('.edit-playlist-btn')) {
             const card = e.target.closest('.user-playlist');
             const playlistId = card.dataset.userPlaylistId;
-            db.getPlaylist(playlistId).then(async (playlist) => {
+            await db.getPlaylist(playlistId).then(async (playlist) => {
                 if (playlist) {
                     const modal = document.getElementById('playlist-modal');
                     document.getElementById('playlist-modal-title').textContent = 'Edit Playlist';
@@ -2126,7 +2160,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                         shareBtn.style.display = playlist.isPublic ? 'flex' : 'none';
                         shareBtn.onclick = () => {
                             const url = getShareUrl(`/userplaylist/${playlist.id}`);
-                            navigator.clipboard.writeText(url).then(() => alert('Link copied to clipboard!'));
+                            navigator.clipboard
+                                .writeText(url)
+                                .then(() => alert('Link copied to clipboard!'))
+                                .catch(console.error);
                         };
                     }
 
@@ -2165,73 +2202,77 @@ document.addEventListener('DOMContentLoaded', async () => {
             const card = e.target.closest('.user-playlist');
             const playlistId = card.dataset.userPlaylistId;
             if (confirm('Are you sure you want to delete this playlist?')) {
-                db.deletePlaylist(playlistId).then(() => {
-                    syncManager.syncUserPlaylist({ id: playlistId }, 'delete');
-                    UIRenderer.instance.renderLibraryPage();
-                });
+                await db.deletePlaylist(playlistId);
+                await syncManager.syncUserPlaylist({ id: playlistId }, 'delete');
+                UIRenderer.instance.renderLibraryPage();
             }
         }
 
         if (e.target.closest('#edit-playlist-btn')) {
             const playlistId = window.location.pathname.split('/')[2];
-            db.getPlaylist(playlistId).then((playlist) => {
-                if (playlist) {
-                    const modal = document.getElementById('playlist-modal');
-                    document.getElementById('playlist-modal-title').textContent = 'Edit Playlist';
-                    document.getElementById('playlist-name-input').value = playlist.name;
-                    document.getElementById('playlist-cover-input').value = playlist.cover || '';
-                    document.getElementById('playlist-description-input').value = playlist.description || '';
+            await db
+                .getPlaylist(playlistId)
+                .then((playlist) => {
+                    if (playlist) {
+                        const modal = document.getElementById('playlist-modal');
+                        document.getElementById('playlist-modal-title').textContent = 'Edit Playlist';
+                        document.getElementById('playlist-name-input').value = playlist.name;
+                        document.getElementById('playlist-cover-input').value = playlist.cover || '';
+                        document.getElementById('playlist-description-input').value = playlist.description || '';
 
-                    const publicToggle = document.getElementById('playlist-public-toggle');
-                    const shareBtn = document.getElementById('playlist-share-btn');
+                        const publicToggle = document.getElementById('playlist-public-toggle');
+                        const shareBtn = document.getElementById('playlist-share-btn');
 
-                    if (publicToggle) publicToggle.checked = !!playlist.isPublic;
-                    if (shareBtn) {
-                        shareBtn.style.display = playlist.isPublic ? 'flex' : 'none';
-                        shareBtn.onclick = () => {
-                            const url = getShareUrl(`/userplaylist/${playlist.id}`);
-                            navigator.clipboard.writeText(url).then(() => alert('Link copied to clipboard!'));
-                        };
+                        if (publicToggle) publicToggle.checked = !!playlist.isPublic;
+                        if (shareBtn) {
+                            shareBtn.style.display = playlist.isPublic ? 'flex' : 'none';
+                            shareBtn.onclick = async () => {
+                                const url = getShareUrl(`/userplaylist/${playlist.id}`);
+                                await navigator.clipboard
+                                    .writeText(url)
+                                    .then(() => alert('Link copied to clipboard!'))
+                                    .catch(console.error);
+                            };
+                        }
+
+                        // Set cover upload state - show URL input if there's an existing cover
+                        const coverUploadBtn = document.getElementById('playlist-cover-upload-btn');
+                        const coverUrlInput = document.getElementById('playlist-cover-input');
+                        const coverToggleUrlBtn = document.getElementById('playlist-cover-toggle-url-btn');
+                        if (playlist.cover) {
+                            if (coverUploadBtn) coverUploadBtn.style.display = 'none';
+                            if (coverUrlInput) coverUrlInput.style.display = 'block';
+                            if (coverToggleUrlBtn) {
+                                coverToggleUrlBtn.textContent = 'Upload';
+                                coverToggleUrlBtn.title = 'Switch to file upload';
+                            }
+                        } else {
+                            if (coverUploadBtn) {
+                                coverUploadBtn.style.flex = '1';
+                                coverUploadBtn.style.display = 'flex';
+                            }
+                            if (coverUrlInput) coverUrlInput.style.display = 'none';
+                            if (coverToggleUrlBtn) {
+                                coverToggleUrlBtn.textContent = 'or URL';
+                                coverToggleUrlBtn.title = 'Switch to URL input';
+                            }
+                        }
+
+                        modal.dataset.editingId = playlistId;
+                        document.getElementById('import-section').style.display = 'none';
+                        modal.classList.add('active');
+                        document.getElementById('playlist-name-input').focus();
                     }
-
-                    // Set cover upload state - show URL input if there's an existing cover
-                    const coverUploadBtn = document.getElementById('playlist-cover-upload-btn');
-                    const coverUrlInput = document.getElementById('playlist-cover-input');
-                    const coverToggleUrlBtn = document.getElementById('playlist-cover-toggle-url-btn');
-                    if (playlist.cover) {
-                        if (coverUploadBtn) coverUploadBtn.style.display = 'none';
-                        if (coverUrlInput) coverUrlInput.style.display = 'block';
-                        if (coverToggleUrlBtn) {
-                            coverToggleUrlBtn.textContent = 'Upload';
-                            coverToggleUrlBtn.title = 'Switch to file upload';
-                        }
-                    } else {
-                        if (coverUploadBtn) {
-                            coverUploadBtn.style.flex = '1';
-                            coverUploadBtn.style.display = 'flex';
-                        }
-                        if (coverUrlInput) coverUrlInput.style.display = 'none';
-                        if (coverToggleUrlBtn) {
-                            coverToggleUrlBtn.textContent = 'or URL';
-                            coverToggleUrlBtn.title = 'Switch to URL input';
-                        }
-                    }
-
-                    modal.dataset.editingId = playlistId;
-                    document.getElementById('import-section').style.display = 'none';
-                    modal.classList.add('active');
-                    document.getElementById('playlist-name-input').focus();
-                }
-            });
+                })
+                .catch(console.error);
         }
 
         if (e.target.closest('#delete-playlist-btn')) {
             const playlistId = window.location.pathname.split('/')[2];
             if (confirm('Are you sure you want to delete this playlist?')) {
-                db.deletePlaylist(playlistId).then(() => {
-                    syncManager.syncUserPlaylist({ id: playlistId }, 'delete');
-                    navigate('/library');
-                });
+                await db.deletePlaylist(playlistId);
+                await syncManager.syncUserPlaylist({ id: playlistId }, 'delete');
+                navigate('/library');
             }
         }
 
@@ -2240,7 +2281,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const btn = e.target.closest('.remove-from-playlist-btn');
             const playlistId = window.location.pathname.split('/')[2];
 
-            db.getPlaylist(playlistId).then(async (playlist) => {
+            await db.getPlaylist(playlistId).then(async (playlist) => {
                 let trackId = null;
                 let trackType = null;
 
@@ -2259,7 +2300,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (trackId) {
                     const updatedPlaylist = await db.removeTrackFromPlaylist(playlistId, trackId, trackType);
-                    syncManager.syncUserPlaylist(updatedPlaylist, 'update');
+                    await syncManager.syncUserPlaylist(updatedPlaylist, 'update');
                     const scrollTop = document.querySelector('.main-content').scrollTop;
                     await UIRenderer.instance.renderPlaylistPage(playlistId, 'user');
                     document.querySelector('.main-content').scrollTop = scrollTop;
@@ -2780,7 +2821,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // PWA Update Logic
     if (window.__AUTH_GATE__) {
-        disablePwaForAuthGate();
+        await disablePwaForAuthGate().catch(console.error);
     } else {
         const updateSW = registerSW({
             onNeedRefresh() {
@@ -2898,10 +2939,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 );
             });
         } else {
-            headerAccountBtn.addEventListener('click', (e) => {
+            headerAccountBtn.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 headerAccountDropdown.classList.toggle('active');
-                updateAccountDropdown();
+                await updateAccountDropdown();
             });
         }
 
@@ -2975,8 +3016,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <button class="btn-primary" id="header-create-profile">Create Profile</button>
                         <button class="btn-secondary danger" id="header-sign-out">Sign Out</button>
                     `;
-                    document.getElementById('header-create-profile').onclick = () => {
-                        openEditProfile();
+                    document.getElementById('header-create-profile').onclick = async () => {
+                        openEditProfile().catch(console.error);
                         headerAccountDropdown.classList.remove('active');
                     };
                 }
@@ -3065,7 +3106,7 @@ function showMissingTracksNotification(missingTracks, playlistName) {
         const newCopyBtn = copyBtn.cloneNode(true);
         copyBtn.parentNode.replaceChild(newCopyBtn, copyBtn);
 
-        newCopyBtn.addEventListener('click', () => {
+        newCopyBtn.addEventListener('click', async () => {
             const header = `Missing songs from ${playlistName} import:\n\n`;
             const textToCopy =
                 header +
@@ -3077,11 +3118,14 @@ function showMissingTracksNotification(missingTracks, playlistName) {
                     })
                     .join('\n');
 
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                const originalText = newCopyBtn.textContent;
-                newCopyBtn.textContent = 'Copied!';
-                setTimeout(() => (newCopyBtn.textContent = originalText), 2000);
-            });
+            await navigator.clipboard
+                .writeText(textToCopy)
+                .then(async () => {
+                    const originalText = newCopyBtn.textContent;
+                    newCopyBtn.textContent = 'Copied!';
+                    setTimeout(() => (newCopyBtn.textContent = originalText), 2000);
+                })
+                .catch(console.error);
         });
     }
 
