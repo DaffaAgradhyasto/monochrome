@@ -10491,4 +10491,158 @@ body:has(#side-panel.active) #fs-ai-chat-btn {
         padding-bottom: 0 !important;
     }
 }
+
+    /* ===== CONNECT PROMPT OVERLAY ===== */
+#connect-prompt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: connectPromptFadeIn 0.35s ease forwards;
+}
+
+@keyframes connectPromptFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes connectPromptFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.connect-prompt-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.connect-prompt-card {
+  position: relative;
+  z-index: 1;
+  background: var(--card, #1a1a2e);
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  border-radius: 20px;
+  padding: 2.5rem 2rem;
+  width: 90%;
+  max-width: 420px;
+  text-align: center;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.6);
+  animation: connectPromptSlideUp 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;
+}
+
+@keyframes connectPromptSlideUp {
+  from { transform: translateY(30px) scale(0.95); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.connect-prompt-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-bottom: 1.2rem;
+}
+
+.connect-prompt-logo h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--foreground, #fff);
+  margin: 0;
+}
+
+.connect-prompt-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--foreground, #fff);
+  margin: 0 0 0.5rem;
+}
+
+.connect-prompt-subtitle {
+  font-size: 0.9rem;
+  color: var(--muted-foreground, rgba(255,255,255,0.6));
+  margin: 0 0 1.5rem;
+  line-height: 1.5;
+}
+
+.connect-prompt-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  color: var(--muted-foreground, rgba(255,255,255,0.5));
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.connect-prompt-divider::before,
+.connect-prompt-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border, rgba(255,255,255,0.15));
+}
+
+.connect-prompt-oauth-btns {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.cp-oauth-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  border: 1px solid var(--border, rgba(255,255,255,0.15));
+  background: var(--secondary, rgba(255,255,255,0.07));
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, transform 0.15s, border-color 0.2s;
+  color: var(--foreground, #fff);
+}
+
+.cp-oauth-btn svg {
+  width: 22px;
+  height: 22px;
+  filter: brightness(0) invert(1);
+}
+
+.cp-oauth-btn:hover {
+  background: var(--accent, rgba(255,255,255,0.15));
+  border-color: var(--accent, rgba(255,255,255,0.3));
+  transform: translateY(-2px);
+}
+
+.connect-prompt-email-btn {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border, rgba(255,255,255,0.15));
+  background: var(--secondary, rgba(255,255,255,0.07));
+  color: var(--foreground, #fff);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+  margin-bottom: 1.25rem;
+}
+
+.connect-prompt-email-btn:hover {
+  background: var(--accent, rgba(255,255,255,0.15));
+  transform: translateY(-1px);
+}
+
+.connect-prompt-note {
+  font-size: 0.78rem;
+  color: var(--muted-foreground, rgba(255,255,255,0.4));
+  margin: 0;
+  line-height: 1.5;
+}
 }
