@@ -3,6 +3,7 @@ import discordSvg from '../images/discord.svg?svg&size=22';
 import googleSvg from '../images/google.svg?svg&size=22';
 import githubSvg from '../images/github.svg?svg&size=22';
 import spotifySvg from '../images/spotify.svg?svg&size=22';
+import { initConnectPrompt } from './connect-prompt.js';
 import { isIos, isSafari } from './platform-detection.js';
 import { hapticLight } from './haptics.js';
 import { MusicAPI } from './music-api.js';
@@ -389,7 +390,7 @@ async function uploadCoverImage(file) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    await initI18n();
+    await initI18n();   initConnectPrompt(discordSvg, googleSvg, githubSvg, spotifySvg);
 
     if (import.meta.env.DEV) {
         window.monochrome = {
