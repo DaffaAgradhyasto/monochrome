@@ -2913,7 +2913,7 @@ export const dataSaverSettings = {
             ? 'Extreme - Hemat hingga ~90% data'
             : 'Moderate - Hemat hingga ~60% data';
     }
-
+};
 // Fullscreen cover visual settings stubs (added for build compatibility)
 export const fullscreenCoverNoRoundSettings = {
     STORAGE_KEY: 'fullscreen-cover-no-round',
