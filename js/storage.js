@@ -2913,4 +2913,46 @@ export const dataSaverSettings = {
             ? 'Extreme - Hemat hingga ~90% data'
             : 'Moderate - Hemat hingga ~60% data';
     }
+
+// Fullscreen cover visual settings stubs (added for build compatibility)
+export const fullscreenCoverNoRoundSettings = {
+    STORAGE_KEY: 'fullscreen-cover-no-round',
+    isEnabled() {
+        try { return localStorage.getItem(this.STORAGE_KEY) === 'true'; } catch { return false; }
+    },
+    setEnabled(enabled) { localStorage.setItem(this.STORAGE_KEY, enabled ? 'true' : 'false'); },
+};
+
+export const fullscreenCoverVanillaTiltSettings = {
+    STORAGE_KEY: 'fullscreen-cover-vanilla-tilt',
+    isEnabled() {
+        try {
+            const val = localStorage.getItem(this.STORAGE_KEY);
+            return val === null ? true : val === 'true';
+        } catch { return true; }
+    },
+    setEnabled(enabled) { localStorage.setItem(this.STORAGE_KEY, enabled ? 'true' : 'false'); },
+};
+
+export const fullscreenCoverTiltDistanceSettings = {
+    STORAGE_KEY: 'fullscreen-cover-tilt-distance',
+    getValue() {
+        try {
+            const val = parseFloat(localStorage.getItem(this.STORAGE_KEY));
+            return isNaN(val) ? 10 : val;
+        } catch { return 10; }
+    },
+    setValue(val) { localStorage.setItem(this.STORAGE_KEY, val); },
+};
+
+export const fullscreenCoverTiltSpeedSettings = {
+    STORAGE_KEY: 'fullscreen-cover-tilt-speed',
+    getValue() {
+        try {
+            const val = parseFloat(localStorage.getItem(this.STORAGE_KEY));
+            return isNaN(val) ? 400 : val;
+        } catch { return 400; }
+    },
+    setValue(val) { localStorage.setItem(this.STORAGE_KEY, val); },
+};
 };
