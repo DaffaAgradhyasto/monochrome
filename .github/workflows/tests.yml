@@ -35,7 +35,7 @@ jobs:
               run: bun install
 
             - name: Install playwright dependencies
-              run: bun run install:playwright
+                          run: bunx playwright install --with-deps chromium
 
             - name: Run vitest
-              run: bun run test:headless
+                          run: bunx vitest run
