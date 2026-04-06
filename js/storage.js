@@ -428,7 +428,8 @@ export const lastFMStorage = {
     },
 
     setScrobblePercentage(percentage) {
-        const validPercentage = Math.max(1, Math.min(100, parseInt(percentage, 10) || 75));
+        const parsed = parseInt(percentage, 10);
+        const validPercentage = Math.max(1, Math.min(100, isNaN(parsed) ? 75 : parsed));
         localStorage.setItem(this.SCROBBLE_PERCENTAGE_KEY, validPercentage.toString());
     },
 
@@ -1049,9 +1050,10 @@ export const equalizerSettings = {
     },
 
     setBandCount(count) {
+        const parsedCount = parseInt(count, 10);
         const validCount = Math.max(
             this.MIN_BANDS,
-            Math.min(this.MAX_BANDS, parseInt(count, 10) || this.DEFAULT_BAND_COUNT)
+            Math.min(this.MAX_BANDS, isNaN(parsedCount) ? this.DEFAULT_BAND_COUNT : parsedCount)
         );
         localStorage.setItem(this.BAND_COUNT_KEY, validCount.toString());
     },
@@ -2162,7 +2164,8 @@ export const fontSettings = {
     },
 
     setFontSize(size) {
-        const validSize = Math.max(50, Math.min(200, parseInt(size, 10) || 100));
+        const parsed = parseInt(size, 10);
+        const validSize = Math.max(50, Math.min(200, isNaN(parsed) ? 100 : parsed));
         localStorage.setItem(this.FONT_SIZE_KEY, validSize.toString());
         this.applyFontSize();
         return validSize;
