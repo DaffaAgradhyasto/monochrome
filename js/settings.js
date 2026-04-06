@@ -1162,8 +1162,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
     if (replayGainPreamp) {
         replayGainPreamp.value = replayGainSettings.getPreamp();
         replayGainPreamp.addEventListener('change', (e) => {
-            const val = parseFloat(e.target.value);
-            replayGainSettings.setPreamp(isNaN(val) ? 3 : val);
+            replayGainSettings.setPreamp(parseFloat(e.target.value) || 3);
             player.applyReplayGain();
         });
     }
@@ -1200,8 +1199,7 @@ export async function initializeSettings(scrobbler, player, api, ui) {
     if (playbackSpeedSlider && playbackSpeedInput) {
         // Helper function to update both controls
         const updatePlaybackSpeedControls = (speed) => {
-            const parsedSpeed = parseFloat(speed);
-            const validSpeed = Math.max(0.01, Math.min(100, isNaN(parsedSpeed) ? 1.0 : parsedSpeed));
+            const validSpeed = Math.max(0.01, Math.min(100, parseFloat(speed) || 1.0));
             playbackSpeedInput.value = validSpeed;
             // Only update slider if value is within slider range
             if (validSpeed >= 0.25 && validSpeed <= 4.0) {
