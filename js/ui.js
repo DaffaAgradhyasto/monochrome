@@ -93,6 +93,7 @@ const setFullscreenUIToggleIcon = (button, visualizerOnlyMode) => {
     button.innerHTML = visualizerOnlyMode ? SVG_EYE(24) : SVG_EYE_OFF(24);
 };
 
+const isMobileFullscreenViewport = () => window.matchMedia('(max-width: 768px)').matches;
 function sortTracks(tracks, sortType) {
     if (sortType === 'custom') return [...tracks];
     const sorted = [...tracks];
@@ -155,6 +156,10 @@ export class UIRenderer {
         this.renderLock = false;
         this.lastRecommendedTracks = [];
         this.currentArtistId = null;
+        this.fullscreenLyricsVisible = true;
+        this.fullscreenPlaybackStateCleanup = null;
+        this.fullscreenDismissHandleCleanup = null;
+        this.fullscreenLyricsToggleCleanup = null;
 
         // Listen for dynamic color reset events
         window.addEventListener('reset-dynamic-color', () => {
@@ -1092,9 +1097,13 @@ export class UIRenderer {
         let r = parseInt(hex.substr(0, 2), 16);
         let g = parseInt(hex.substr(2, 2), 16);
         let b = parseInt(hex.substr(4, 2), 16);
+        let fullscreenR = r;
+        let fullscreenG = g;
+        let fullscreenB = b;
 
         // Calculate perceived brightness
         let brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        let fullscreenBrightness = brightness;
 
         if (isLightMode) {
             // In light mode, the background is white.
@@ -1121,6 +1130,23 @@ export class UIRenderer {
         }
 
         const adjustedColor = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+        while (fullscreenBrightness < 105) {
+            fullscreenR = Math.min(255, Math.max(fullscreenR + 1, Math.floor(fullscreenR * 1.08)));
+            fullscreenG = Math.min(255, Math.max(fullscreenG + 1, Math.floor(fullscreenG * 1.08)));
+            fullscreenB = Math.min(255, Math.max(fullscreenB + 1, Math.floor(fullscreenB * 1.08)));
+            fullscreenBrightness = (fullscreenR * 299 + fullscreenG * 587 + fullscreenB * 114) / 1000;
+            if (fullscreenR >= 255 && fullscreenG >= 255 && fullscreenB >= 255) break;
+        }
+        while (fullscreenBrightness > 185) {
+            fullscreenR = Math.floor(fullscreenR * 0.92);
+            fullscreenG = Math.floor(fullscreenG * 0.92);
+            fullscreenB = Math.floor(fullscreenB * 0.92);
+            fullscreenBrightness = (fullscreenR * 299 + fullscreenG * 587 + fullscreenB * 114) / 1000;
+        }
+
+        const fullscreenAdjustedColor = `#${fullscreenR.toString(16).padStart(2, '0')}${fullscreenG
+            .toString(16)
+            .padStart(2, '0')}${fullscreenB.toString(16).padStart(2, '0')}`;
 
         // Calculate contrast text color for buttons (text on top of the vibrant color)
         const foreground = brightness > 128 ? '#000000' : '#ffffff';
@@ -1132,6 +1158,8 @@ export class UIRenderer {
         root.style.setProperty('--highlight-rgb', `${r}, ${g}, ${b}`);
         root.style.setProperty('--active-highlight', adjustedColor);
         root.style.setProperty('--ring', adjustedColor);
+        root.style.setProperty('--fs-accent', fullscreenAdjustedColor);
+        root.style.setProperty('--fs-accent-rgb', `${fullscreenR}, ${fullscreenG}, ${fullscreenB}`);
 
         // Calculate a safe hover color
         let hoverColor;
@@ -1154,6 +1182,8 @@ export class UIRenderer {
         root.style.removeProperty('--highlight-rgb');
         root.style.removeProperty('--active-highlight');
         root.style.removeProperty('--ring');
+        root.style.removeProperty('--fs-accent');
+        root.style.removeProperty('--fs-accent-rgb');
         root.style.removeProperty('--track-hover-bg');
     }
 
@@ -1267,12 +1297,10 @@ export class UIRenderer {
                     currentImage.src = coverUrl;
                 }
             }
-            overlay.style.setProperty('--bg-image', `url('${this.api.getCoverUrl(track.album?.cover, '1280')}')`);
             await this.extractAndApplyColor(this.api.getCoverUrl(track.album?.cover, '80'));
         }
 
-        const qualityBadge = this.getFullscreenQualityBadgeHTML(track);
-        title.innerHTML = `${escapeHtml(track.title)} ${qualityBadge}`;
+        this.updateFullscreenQualityBadgePlacement(track, overlay);
         artist.textContent = getTrackArtists(track);
 
         if (nextTrack) {
@@ -1285,7 +1313,7 @@ export class UIRenderer {
 
     async showFullscreenCover(track, nextTrack, lyricsManager, activeElement) {
         if (!track) return;
-        this.fullscreenVisualizerSuppressed = true;
+        this.fullscreenVisualizerSuppressed = isMobileFullscreenViewport();
         if (window.location.hash !== '#fullscreen') {
             window.history.pushState({ fullscreen: true }, '', '#fullscreen');
         }
@@ -1324,6 +1352,7 @@ export class UIRenderer {
         } else {
             if (lyricsToggleBtn) lyricsToggleBtn.style.display = 'none';
         }
+        this.updateFullscreenLyricsVisibility(overlay);
 
         const playerBar = document.querySelector('.now-playing-bar');
         if (playerBar) playerBar.style.display = 'none';
@@ -1375,7 +1404,83 @@ export class UIRenderer {
         this.setupUIToggleButton(overlay);
         this.setupControlsAutoHide(overlay);
         this.setupFullscreenSidePanelSync(overlay);
+        this.setupFullscreenDismissHandle(overlay);
+        this.setupFullscreenLyricsToggle(overlay);
         await this.refreshFullscreenVisualizerState(activeElement);
+    }
+
+    updateFullscreenLyricsVisibility(overlay = document.getElementById('fullscreen-cover-overlay')) {
+        if (!overlay) return;
+
+        const lyricsToggleButtons = [
+            document.getElementById('toggle-fullscreen-lyrics-btn'),
+            document.getElementById('toggle-fullscreen-lyrics-mobile-btn'),
+        ].filter(Boolean);
+        const lyricsUnavailable = overlay.classList.contains('lyrics-unavailable');
+        const shouldShowLyrics = this.fullscreenLyricsVisible && !lyricsUnavailable;
+
+        overlay.classList.toggle('lyrics-hidden', !shouldShowLyrics);
+        this.updateFullscreenQualityBadgePlacement(this.player?.currentTrack, overlay);
+
+        lyricsToggleButtons.forEach((lyricsToggleBtn) => {
+            lyricsToggleBtn.classList.toggle('active', shouldShowLyrics);
+            lyricsToggleBtn.title = shouldShowLyrics ? 'Hide Lyrics' : 'Show Lyrics';
+            lyricsToggleBtn.setAttribute('aria-pressed', shouldShowLyrics ? 'true' : 'false');
+            if (lyricsUnavailable) {
+                lyricsToggleBtn.style.display = 'none';
+            } else {
+                lyricsToggleBtn.style.removeProperty('display');
+            }
+        });
+    }
+
+    updateFullscreenQualityBadgePlacement(track, overlay = document.getElementById('fullscreen-cover-overlay')) {
+        if (!track || !overlay) return;
+
+        const title = document.getElementById('fullscreen-track-title');
+        const mobileQuality = document.getElementById('fullscreen-mobile-quality');
+        if (!title) return;
+
+        const qualityBadge = this.getFullscreenQualityBadgeHTML(track);
+        const useMobileBadgeOnly =
+            window.matchMedia('(max-width: 768px)').matches && overlay.classList.contains('lyrics-hidden');
+
+        title.innerHTML = useMobileBadgeOnly ? escapeHtml(track.title) : `${escapeHtml(track.title)} ${qualityBadge}`;
+        if (mobileQuality) {
+            mobileQuality.innerHTML = useMobileBadgeOnly ? qualityBadge : '';
+        }
+    }
+
+    async dismissFullscreenCover({ animate = true } = {}) {
+        const overlay = document.getElementById('fullscreen-cover-overlay');
+        if (!overlay || overlay.style.display === 'none') return;
+
+        if (animate) {
+            await new Promise((resolve) => {
+                const finish = () => {
+                    overlay.removeEventListener('transitionend', handleTransitionEnd);
+                    overlay.classList.remove('fullscreen-dragging', 'fullscreen-dismissing');
+                    overlay.style.removeProperty('--fullscreen-drag-offset');
+                    overlay.style.removeProperty('--fullscreen-drag-progress');
+                    resolve();
+                };
+
+                const handleTransitionEnd = (event) => {
+                    if (event.target !== overlay.querySelector('.fullscreen-cover-content')) return;
+                    finish();
+                };
+
+                overlay.addEventListener('transitionend', handleTransitionEnd);
+                overlay.classList.add('fullscreen-dismissing');
+                window.setTimeout(finish, 280);
+            });
+        }
+
+        this.closeFullscreenCover();
+
+        if (window.location.hash === '#fullscreen') {
+            window.history.back();
+        }
     }
 
     closeFullscreenCover() {
@@ -1390,7 +1495,16 @@ export class UIRenderer {
             lyricsContent.innerHTML = '<div class="fullscreen-lyrics-empty">Lyrics appear here.</div>';
         }
         overlay.style.display = 'none';
-        overlay.classList.remove('visualizer-active', 'ui-hidden', 'fullscreen-cover-no-round', 'fullscreen-paused');
+        overlay.classList.remove(
+            'visualizer-active',
+            'ui-hidden',
+            'fullscreen-cover-no-round',
+            'fullscreen-paused',
+            'fullscreen-dragging',
+            'fullscreen-dismissing'
+        );
+        overlay.style.removeProperty('--fullscreen-drag-offset');
+        overlay.style.removeProperty('--fullscreen-drag-progress');
 
         const playerBar = document.querySelector('.now-playing-bar');
         if (playerBar) playerBar.style.removeProperty('display');
@@ -1495,7 +1609,6 @@ export class UIRenderer {
                 }
 
                 this.fullscreenVisualizerSuppressed = false;
-                visualizerSettings.setEnabled(true);
                 await this.refreshFullscreenVisualizerState(this.player?.activeElement);
 
                 if (!overlay.classList.contains('visualizer-active')) {
@@ -1575,6 +1688,138 @@ export class UIRenderer {
         };
     }
 
+    setupFullscreenDismissHandle(overlay) {
+        if (this.fullscreenDismissHandleCleanup) {
+            this.fullscreenDismissHandleCleanup();
+            this.fullscreenDismissHandleCleanup = null;
+        }
+
+        const handle = document.getElementById('fullscreen-dismiss-handle');
+        if (!handle) return;
+
+        let activePointerId = null;
+        let startY = 0;
+        let startX = 0;
+        let lastY = 0;
+        let lastTimestamp = 0;
+        let velocityY = 0;
+        let hasDragged = false;
+
+        const resetDragState = () => {
+            activePointerId = null;
+            hasDragged = false;
+            overlay.classList.remove('fullscreen-dragging');
+            overlay.style.removeProperty('--fullscreen-drag-offset');
+            overlay.style.removeProperty('--fullscreen-drag-progress');
+        };
+
+        const onPointerDown = (event) => {
+            if (!isMobileFullscreenViewport()) return;
+
+            activePointerId = event.pointerId;
+            startY = event.clientY;
+            startX = event.clientX;
+            lastY = event.clientY;
+            lastTimestamp = event.timeStamp;
+            velocityY = 0;
+            hasDragged = false;
+            overlay.classList.add('fullscreen-dragging');
+            handle.setPointerCapture(event.pointerId);
+        };
+
+        const onPointerMove = (event) => {
+            if (event.pointerId !== activePointerId) return;
+
+            const deltaY = Math.max(0, event.clientY - startY);
+            const deltaX = Math.abs(event.clientX - startX);
+
+            if (!hasDragged && deltaX > deltaY) {
+                resetDragState();
+                return;
+            }
+
+            hasDragged = true;
+            event.preventDefault();
+
+            const elapsed = Math.max(1, event.timeStamp - lastTimestamp);
+            velocityY = (event.clientY - lastY) / elapsed;
+            lastY = event.clientY;
+            lastTimestamp = event.timeStamp;
+
+            const progress = Math.min(deltaY / Math.max(window.innerHeight * 0.32, 1), 1);
+            overlay.style.setProperty('--fullscreen-drag-offset', `${deltaY}px`);
+            overlay.style.setProperty('--fullscreen-drag-progress', progress.toFixed(3));
+        };
+
+        const onPointerEnd = async (event) => {
+            if (event.pointerId !== activePointerId) return;
+
+            const deltaY = Math.max(0, event.clientY - startY);
+            const shouldDismiss = hasDragged && (deltaY > 96 || velocityY > 0.55);
+
+            if (handle.hasPointerCapture(event.pointerId)) {
+                handle.releasePointerCapture(event.pointerId);
+            }
+
+            if (shouldDismiss) {
+                await this.dismissFullscreenCover();
+                return;
+            }
+
+            resetDragState();
+        };
+
+        const onClick = async (event) => {
+            if (!isMobileFullscreenViewport() || hasDragged) return;
+            event.preventDefault();
+            await this.dismissFullscreenCover();
+        };
+
+        handle.addEventListener('pointerdown', onPointerDown);
+        handle.addEventListener('pointermove', onPointerMove);
+        handle.addEventListener('pointerup', onPointerEnd);
+        handle.addEventListener('pointercancel', onPointerEnd);
+        handle.addEventListener('click', onClick);
+
+        this.fullscreenDismissHandleCleanup = () => {
+            handle.removeEventListener('pointerdown', onPointerDown);
+            handle.removeEventListener('pointermove', onPointerMove);
+            handle.removeEventListener('pointerup', onPointerEnd);
+            handle.removeEventListener('pointercancel', onPointerEnd);
+            handle.removeEventListener('click', onClick);
+            overlay.classList.remove('fullscreen-dragging');
+            overlay.style.removeProperty('--fullscreen-drag-offset');
+            overlay.style.removeProperty('--fullscreen-drag-progress');
+        };
+    }
+
+    setupFullscreenLyricsToggle(overlay) {
+        if (this.fullscreenLyricsToggleCleanup) {
+            this.fullscreenLyricsToggleCleanup();
+            this.fullscreenLyricsToggleCleanup = null;
+        }
+
+        const toggleButtons = [
+            document.getElementById('toggle-fullscreen-lyrics-btn'),
+            document.getElementById('toggle-fullscreen-lyrics-mobile-btn'),
+        ].filter(Boolean);
+        if (toggleButtons.length === 0) return;
+
+        const handleToggle = (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (overlay.classList.contains('lyrics-unavailable')) return;
+            this.fullscreenLyricsVisible = !this.fullscreenLyricsVisible;
+            this.updateFullscreenLyricsVisibility(overlay);
+        };
+
+        toggleButtons.forEach((toggleBtn) => toggleBtn.addEventListener('click', handleToggle));
+        this.updateFullscreenLyricsVisibility(overlay);
+
+        this.fullscreenLyricsToggleCleanup = () => {
+            toggleButtons.forEach((toggleBtn) => toggleBtn.removeEventListener('click', handleToggle));
+        };
+    }
     setupFullscreenControls() {
         const playBtn = document.getElementById('fs-play-pause-btn');
         const prevBtn = document.getElementById('fs-prev-btn');
@@ -1669,16 +1914,7 @@ export class UIRenderer {
 
         if (visualizerBtn) {
             visualizerBtn.onclick = async () => {
-                if (this.fullscreenVisualizerSuppressed) {
-                    this.fullscreenVisualizerSuppressed = false;
-                    visualizerSettings.setEnabled(true);
-                } else if (visualizerSettings.isEnabled()) {
-                    visualizerSettings.setEnabled(false);
-                    this.fullscreenVisualizerSuppressed = false;
-                } else {
-                    this.fullscreenVisualizerSuppressed = false;
-                    visualizerSettings.setEnabled(true);
-                }
+                this.fullscreenVisualizerSuppressed = !this.fullscreenVisualizerSuppressed;
                 await this.refreshFullscreenVisualizerState(this.player.activeElement);
             };
         }
