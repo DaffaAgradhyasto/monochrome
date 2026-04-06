@@ -877,9 +877,9 @@ export const visualizerSettings = {
 
     getPreset() {
         try {
-            return localStorage.getItem(this.PRESET_KEY) || 'kawarp';
+            return localStorage.getItem(this.PRESET_KEY) || 'butterchurn';
         } catch {
-            return 'kawarp';
+            return 'butterchurn';
         }
     },
 
