@@ -3946,7 +3946,7 @@ export class UIRenderer {
             async function fetchAotyWorker(album, artist) {
                 try {
                     const response = await fetch(
-                        `https://aoty-critics.samidy.workers.dev/?artist=${artist}&album=${album}`
+                        `https://aoty-api.hnh65483.workers.dev/?artist=${artist}&album=${album}`
                     );
                     const data = await response.json();
 
