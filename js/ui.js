@@ -3656,7 +3656,6 @@ export class UIRenderer {
 
             // Track search with results
             const totalResults = finalTracks.length + finalArtists.length + finalAlbums.length + finalPlaylists.length;
-            trackSearch(query, totalResults);
 
             if (finalTracks.length) {
                 await this.renderListWithTracks(tracksContainer, finalTracks, true, false, false, true);
@@ -5808,7 +5807,6 @@ export class UIRenderer {
                 const handleSort = async (ev) => {
                     const li = ev.target.closest('li');
                     if (li && li.dataset.sort) {
-                        trackChangeSort(li.dataset.sort);
                         await onSort(li.dataset.sort);
                         closeMenu();
                     }

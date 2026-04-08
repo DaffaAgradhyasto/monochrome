@@ -39,28 +39,7 @@ import { ThemeStore } from './themeStore.js';
 import { initI18n, applyTranslations } from './i18n.js';
 import './commandPalette.js';
 import { initTracker } from './tracker.js';
-import {
-    initAnalytics,
-    trackSidebarNavigation,
-    trackCreatePlaylist,
-    trackCreateFolder,
-    trackImportJSPF,
-    trackImportCSV,
-    trackImportXSPF,
-    trackImportXML,
-    trackImportM3U,
-    trackSelectLocalFolder,
-    trackChangeLocalFolder,
-    trackOpenModal,
-    trackCloseModal,
-    trackKeyboardShortcut,
-    trackPwaUpdate,
-    trackDismissUpdate,
-    trackOpenFullscreenCover,
-    trackCloseFullscreenCover,
-    trackOpenLyrics,
-    trackCloseLyrics,
-} from './analytics.js';
+import { initAnalytics } from './analytics.js';
 import {
     parseCSV,
     parseJSPF,
@@ -259,52 +238,40 @@ function initializeCasting(audioPlayer, castBtn) {
 function initializeKeyboardShortcuts(player, _audioPlayer) {
     const keyActionMap = {
         playPause: () => {
-            trackKeyboardShortcut('Space');
             player.handlePlayPause();
         },
         seekForward: () => {
-            trackKeyboardShortcut('Right');
             player.seekForward(10);
         },
         seekBackward: () => {
-            trackKeyboardShortcut('Left');
             player.seekBackward(10);
         },
         nextTrack: () => {
-            trackKeyboardShortcut('Shift+Right');
             player.playNext();
         },
         previousTrack: () => {
-            trackKeyboardShortcut('Shift+Left');
             player.playPrev();
         },
         volumeUp: () => {
-            trackKeyboardShortcut('Up');
             player.setVolume(player.userVolume + 0.1);
         },
         volumeDown: () => {
-            trackKeyboardShortcut('Down');
             player.setVolume(player.userVolume - 0.1);
         },
         mute: () => {
-            trackKeyboardShortcut('M');
             const el = player.activeElement;
             el.muted = !el.muted;
         },
         shuffle: () => {
-            trackKeyboardShortcut('S');
             document.getElementById('shuffle-btn')?.click();
         },
         repeat: () => {
-            trackKeyboardShortcut('R');
             document.getElementById('repeat-btn')?.click();
         },
         queue: () => {
-            trackKeyboardShortcut('Q');
             document.getElementById('queue-btn')?.click();
         },
         lyrics: () => {
-            trackKeyboardShortcut('L');
             const overlay = document.getElementById('fullscreen-cover-overlay');
             const isFullscreenOpen = overlay && getComputedStyle(overlay).display !== 'none';
 
@@ -315,29 +282,24 @@ function initializeKeyboardShortcuts(player, _audioPlayer) {
             document.getElementById('toggle-lyrics-btn')?.click();
         },
         search: () => {
-            trackKeyboardShortcut('/');
             document.getElementById('search-input')?.focus();
         },
         escape: () => {
-            trackKeyboardShortcut('Escape');
             document.getElementById('search-input')?.blur();
             sidePanelManager.close();
             clearLyricsPanelSync(player.activeElement, sidePanelManager.panel);
         },
         visualizerNext: () => {
-            trackKeyboardShortcut('VisualizerNext');
             if (UIRenderer.instance.visualizer?.presets?.['butterchurn']) {
                 UIRenderer.instance.visualizer.presets['butterchurn'].nextPreset();
             }
         },
         visualizerPrev: () => {
-            trackKeyboardShortcut('VisualizerPrev');
             if (UIRenderer.instance.visualizer?.presets?.['butterchurn']) {
                 UIRenderer.instance.visualizer.presets['butterchurn'].prevPreset();
             }
         },
         visualizerCycle: () => {
-            trackKeyboardShortcut('VisualizerCycle');
             if (UIRenderer.instance.visualizer?.presets?.['butterchurn']) {
                 UIRenderer.instance.visualizer.presets['butterchurn'].toggleCycle();
             }
@@ -778,7 +740,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const href = link.getAttribute('href');
             if (href && !href.startsWith('http')) {
                 const item = link.querySelector('span')?.textContent || href;
-                trackSidebarNavigation(item);
             }
         });
     });
@@ -821,18 +782,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (mode === 'lyrics') {
             const isActive = sidePanelManager.isActive('lyrics');
-
-            if (isActive) {
-                trackCloseLyrics(Player.instance.currentTrack);
-            } else {
-                trackOpenLyrics(Player.instance.currentTrack);
-            }
         } else if (mode === 'cover') {
             const overlay = document.getElementById('fullscreen-cover-overlay');
             if (overlay && overlay.style.display === 'flex') {
-                trackCloseFullscreenCover();
             } else {
-                trackOpenFullscreenCover(Player.instance.currentTrack);
             }
         }
 
@@ -873,7 +826,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     document.getElementById('close-fullscreen-cover-btn')?.addEventListener('click', async () => {
-        trackCloseFullscreenCover();
         await closeFullscreenOverlay();
     });
 
@@ -1468,7 +1420,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (e.target.closest('#create-playlist-btn') || e.target.closest('#library-create-playlist-card')) {
-            trackOpenModal('Create Playlist');
             const modal = document.getElementById('playlist-modal');
             document.getElementById('playlist-modal-title').textContent = 'Create Playlist';
             document.getElementById('playlist-name-input').value = '';
@@ -1522,7 +1473,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (e.target.closest('#create-folder-btn') || e.target.closest('#library-create-folder-card')) {
-            trackOpenModal('Create Folder');
             const modal = document.getElementById('folder-modal');
             document.getElementById('folder-name-input').value = '';
             document.getElementById('folder-cover-input').value = '';
@@ -1536,11 +1486,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (name) {
                 const folder = await db.createFolder(name, cover);
-                trackCreateFolder(folder);
                 await syncManager.syncUserFolder(folder, 'create');
                 UIRenderer.instance.renderLibraryPage();
                 document.getElementById('folder-modal').classList.remove('active');
-                trackCloseModal('Create Folder');
             } else {
                 showNotification('Please enter a folder name.');
             }
@@ -1729,7 +1677,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                             }
 
                             console.log(`Imported ${tracks.length} tracks from YouTube`);
-                            trackImportCSV(name || 'Untitled', tracks.length, missingTracks.length);
 
                             if (missingTracks.length > 0) {
                                 setTimeout(() => {
@@ -1809,12 +1756,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 jspfPlaylist?.creator ||
                                 jspfPlaylist?.extension?.['https://musicbrainz.org/doc/jspf#playlist']?.creator ||
                                 'unknown';
-                            trackImportJSPF(
-                                name || jspfPlaylist?.title || 'Untitled',
-                                tracks.length,
-                                missingTracks.length,
-                                jspfCreator
-                            );
 
                             if (missingTracks.length > 0) {
                                 setTimeout(() => {
@@ -1928,8 +1869,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                             }
                             console.log(`Imported ${tracks.length} tracks from CSV`);
 
-                            trackImportCSV(name || 'Untitled', tracks.length, missingTracks.length);
-
                             if (missingTracks.length > 0) {
                                 setTimeout(() => {
                                     showMissingTracksNotification(missingTracks, name || 'Untitled');
@@ -1986,8 +1925,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 return;
                             }
                             console.log(`Imported ${tracks.length} tracks from XSPF`);
-
-                            trackImportXSPF(name || 'Untitled', tracks.length, missingTracks.length);
 
                             if (missingTracks.length > 0) {
                                 setTimeout(() => {
@@ -2046,8 +1983,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                             }
                             console.log(`Imported ${tracks.length} tracks from XML`);
 
-                            trackImportXML(name || 'Untitled', tracks.length, missingTracks.length);
-
                             if (missingTracks.length > 0) {
                                 setTimeout(() => {
                                     showMissingTracksNotification(missingTracks, name || 'Untitled');
@@ -2105,8 +2040,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                             }
                             console.log(`Imported ${tracks.length} tracks from M3U`);
 
-                            trackImportM3U(name || 'Untitled', tracks.length, missingTracks.length);
-
                             if (missingTracks.length > 0) {
                                 setTimeout(() => {
                                     showMissingTracksNotification(missingTracks, name || 'Untitled');
@@ -2138,10 +2071,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         // Update DB again with isPublic flag
                         await db.performTransaction('user_playlists', 'readwrite', (store) => store.put(playlist));
                         await syncManager.syncUserPlaylist(playlist, 'create');
-                        trackCreatePlaylist(playlist, importSource);
                         UIRenderer.instance.renderLibraryPage();
                         modal.classList.remove('active');
-                        trackCloseModal('Create Playlist');
                     });
                 }
             } else {
@@ -2643,9 +2574,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
 
                 await db.saveSetting('local_folder_handle', handle);
-                if (isChange) {
-                    trackChangeLocalFolder();
-                }
 
                 const btn = document.getElementById('select-local-folder-btn');
                 const btnText = document.getElementById('select-local-folder-text');
@@ -2656,7 +2584,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
 
                 const tracks = scanLocalMediaFolder(true);
-                trackSelectLocalFolder(tracks?.length ?? 0);
                 UIRenderer.instance.renderLibraryPage();
             } catch (err) {
                 if (err.name !== 'AbortError') {
@@ -2843,12 +2770,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             onNeedRefresh() {
                 if (pwaUpdateSettings.isAutoUpdateEnabled()) {
                     // Auto-update: immediately activate the new service worker
-                    trackPwaUpdate();
                     updateSW(true);
                 } else {
                     // Show notification with Update button and dismiss option
                     showUpdateNotification(() => {
-                        trackPwaUpdate();
                         updateSW(true);
                     });
                 }
@@ -3093,7 +3018,6 @@ function showUpdateNotification(updateCallback) {
     });
 
     document.getElementById('dismiss-update-btn').addEventListener('click', () => {
-        trackDismissUpdate();
         notification.remove();
     });
 }
