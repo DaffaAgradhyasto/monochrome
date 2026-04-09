@@ -449,7 +449,7 @@ export class Player {
             });
 
             navigator.mediaSession.setActionHandler('pause', () => {
-                this.activeElement.pause();
+                this.if (typeof activeElement.pause === 'function') activeElement.pause();
             });
 
             navigator.mediaSession.setActionHandler('previoustrack', async () => {
@@ -491,7 +491,7 @@ export class Player {
             });
 
             navigator.mediaSession.setActionHandler('stop', () => {
-                this.activeElement.pause();
+                this.if (typeof activeElement.pause === 'function') activeElement.pause();
                 this.activeElement.currentTime = 0;
                 this.updateMediaSessionPlaybackState();
             });
@@ -864,7 +864,7 @@ export class Player {
         }
 
         if (inactiveElement) {
-            if (typeof inactiveElement.pause === 'function') inactiveElement.pause();
+            if (typeof inactiveElement.pause === 'function') inif (typeof activeElement.pause === 'function') activeElement.pause();
             inactiveElement.src = '';
             inactiveElement.removeAttribute('src');
             inactiveElement.style.display = 'none';
@@ -877,7 +877,7 @@ export class Player {
             // Let Shaka overwrite the activeElement's decoder pipeline gracefully if we're carrying it over.
             // It manages its own buffering teardown implicitly when `load()` is executed.
             if (!this.shakaInitialized) {
-                activeElement.pause();
+                if (typeof activeElement.pause === 'function') activeElement.pause();
                 activeElement.src = '';
                 activeElement.removeAttribute('src');
             }
@@ -1254,12 +1254,12 @@ export class Player {
                         await this.addToQueue(newTracks);
                         await this.playNext(0);
                     } else {
-                        this.activeElement.pause();
+                        this.if (typeof activeElement.pause === 'function') activeElement.pause();
                     }
                 });
                 return;
             }
-            this.activeElement.pause();
+            this.if (typeof activeElement.pause === 'function') activeElement.pause();
             return;
         }
 
@@ -2226,7 +2226,7 @@ export class Player {
 
         this.sleepTimer = setTimeout(
             () => {
-                this.activeElement.pause();
+                this.if (typeof activeElement.pause === 'function') activeElement.pause();
                 this.clearSleepTimer();
                 this.updateSleepTimerUI();
             },
