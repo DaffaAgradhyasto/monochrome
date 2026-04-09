@@ -2716,6 +2716,15 @@ export class UIRenderer {
                 }
             });
         }
+        // Activate the first tab initially
+        const firstTab = tabs[0];
+        firstTab.classList.add('active');
+        const firstViewId = `home-view-${firstTab.dataset.tab}`;
+        const firstView = document.getElementById(firstViewId);
+        if (firstView) {
+            firstView.style.display = 'block';
+            firstView.classList.add('active');
+        }
     }
 
     async renderExplorePage() {
