@@ -72,26 +72,26 @@ const LONG_PRESS_DURATION = 500;
 function handleTrackTouchStart(e) {
     if (!('ontouchstart' in window)) return;
     const trackItem = e.target.closest('.track-item');
-    if (!trackItem || trackItem.classList.contains('unavailable') || trackItem.classList.contains('blocked')) return;
+    if (!trackItem || trackItem.classList.contains('unavailable')) return;
 
     isLongPress = false;
     longPressTrackItem = trackItem;
 
-    longPressTimer = setTimeout(() => {
+    longPressTimer = setTimeout(async () => {
         isLongPress = true;
         toggleTrackSelection(trackItem, true, false);
-        hapticLongPress();
+        await hapticLongPress();
     }, LONG_PRESS_DURATION);
 }
 
-function handleTrackTouchMove(e) {
+function handleTrackTouchMove(_e) {
     if (longPressTimer) {
         clearTimeout(longPressTimer);
         longPressTimer = null;
     }
 }
 
-function handleTrackTouchEnd(e) {
+function handleTrackTouchEnd(_e) {
     if (longPressTimer) {
         clearTimeout(longPressTimer);
         longPressTimer = null;
@@ -203,7 +203,7 @@ function toggleTrackSelection(trackItem, ctrlHeld, shiftHeld) {
     document.body.classList.toggle('multi-select-mode', trackSelection.isSelecting);
 }
 
-function showMultiSelectPlaylistModal(tracks) {
+async function showMultiSelectPlaylistModal(tracks) {
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
     modal.style.cssText =
@@ -236,7 +236,7 @@ function showMultiSelectPlaylistModal(tracks) {
     document.body.appendChild(modal);
     document.body.style.overflow = 'hidden';
 
-    db.getPlaylists(true).then((playlists) => {
+    await db.getPlaylists(true).then((playlists) => {
         const listEl = modal.querySelector('.playlist-list');
         if (playlists.length === 0) {
             listEl.innerHTML = '<div style="padding: 12px; color: var(--muted-foreground);">No playlists yet</div>';
@@ -259,17 +259,17 @@ function showMultiSelectPlaylistModal(tracks) {
                 for (const track of tracks) {
                     await db.addTrackToPlaylist(playlistId, track);
                 }
-                syncManager.syncUserPlaylist(await db.getPlaylist(playlistId), 'update');
+                await syncManager.syncUserPlaylist(await db.getPlaylist(playlistId), 'update');
                 showNotification(`Added ${tracks.length} tracks to playlist`);
                 closeModal();
             });
         });
     });
 
-    modal.querySelector('.create-new-playlist').addEventListener('click', () => {
+    modal.querySelector('.create-new-playlist').addEventListener('click', async () => {
         const name = prompt('Playlist name:');
         if (name) {
-            db.createPlaylist(name, tracks).then((playlist) => {
+            await db.createPlaylist(name, tracks).then((_playlist) => {
                 showNotification(`Created playlist "${name}" with ${tracks.length} tracks`);
                 closeModal();
             });
@@ -277,127 +277,132 @@ function showMultiSelectPlaylistModal(tracks) {
     });
 }
 
-export function initializePlayerEvents(player, audioPlayer, scrobbler, ui) {
-    const playPauseBtn = document.querySelector('.now-playing-bar .play-pause-btn');
-    const nextBtn = document.getElementById('next-btn');
-    const prevBtn = document.getElementById('prev-btn');
-    const shuffleBtn = document.getElementById('shuffle-btn');
-    const repeatBtn = document.getElementById('repeat-btn');
-    const homeStartRadioBtn = document.getElementById('home-start-infinite-radio-btn');
-    const sleepTimerBtnDesktop = document.getElementById('sleep-timer-btn-desktop');
+const playPauseBtn = document.querySelector('.now-playing-bar .play-pause-btn');
+const nextBtn = document.getElementById('next-btn');
+const prevBtn = document.getElementById('prev-btn');
+const shuffleBtn = document.getElementById('shuffle-btn');
+const repeatBtn = document.getElementById('repeat-btn');
+const homeStartRadioBtn = document.getElementById('home-start-infinite-radio-btn');
+const sleepTimerBtnDesktop = document.getElementById('sleep-timer-btn-desktop');
 
-    const volumeBar = document.getElementById('volume-bar');
-    const volumeFill = document.getElementById('volume-fill');
-    const volumeBtn = document.getElementById('volume-btn');
+const _volumeBar = document.getElementById('volume-bar');
+const volumeFill = document.getElementById('volume-fill');
+const volumeBtn = document.getElementById('volume-btn');
 
-    const updateVolumeUI = () => {
-        const activeEl = player.activeElement;
-        const { muted } = activeEl;
-        const volume = player.userVolume;
-        volumeBtn.innerHTML = muted || volume === 0 ? SVG_MUTE(20) : SVG_VOLUME(20);
-        const effectiveVolume = muted ? 0 : volume * 100;
-        volumeFill.style.setProperty('--volume-level', `${effectiveVolume}%`);
-        volumeFill.style.width = `${effectiveVolume}%`;
-    };
+const updateVolumeUI = () => {
+    const activeEl = Player.instance.activeElement;
+    const { muted } = activeEl;
+    const volume = Player.instance.userVolume;
+    volumeBtn.innerHTML = muted || volume === 0 ? SVG_MUTE(20) : SVG_VOLUME(20);
+    const effectiveVolume = muted ? 0 : volume * 100;
+    volumeFill.style.setProperty('--volume-level', `${effectiveVolume}%`);
+    volumeFill.style.width = `${effectiveVolume}%`;
+};
 
-    function clearSelection() {
-        trackSelection.selectedIds.clear();
-        trackSelection.lastClickedId = null;
-        trackSelection.isSelecting = false;
-        document.body.classList.remove('multi-select-mode');
-        document.querySelectorAll('.track-item.selected').forEach((el) => {
-            el.classList.remove('selected');
-        });
-        document.querySelectorAll('.track-checkbox').forEach((checkbox) => {
-            checkbox.innerHTML = SVG_CHECKBOX(18);
-            checkbox.classList.remove('checked');
-        });
-        updateSelectionBar();
-    }
+function clearSelection() {
+    trackSelection.selectedIds.clear();
+    trackSelection.lastClickedId = null;
+    trackSelection.isSelecting = false;
+    document.body.classList.remove('multi-select-mode');
+    document.querySelectorAll('.track-item.selected').forEach((el) => {
+        el.classList.remove('selected');
+    });
+    document.querySelectorAll('.track-checkbox').forEach((checkbox) => {
+        checkbox.innerHTML = SVG_CHECKBOX(18);
+        checkbox.classList.remove('checked');
+    });
+    updateSelectionBar();
+}
 
-    function updateSelectionBar() {
-        let bar = document.getElementById('selection-bar');
-        if (!bar) {
-            bar = document.createElement('div');
-            bar.id = 'selection-bar';
-            bar.className = 'selection-bar';
-            bar.innerHTML = `
-                <span class="selection-count">0 selected</span>
-                <div class="selection-actions">
-                    <button data-action="play-selected">Play</button>
-                    <button data-action="add-to-queue-selected">Add to queue</button>
-                    <button data-action="add-to-playlist-selected">Add to playlist</button>
-                    <button data-action="download-selected">Download</button>
-                    <button data-action="like-selected">Like</button>
-                </div>
-                <button data-action="clear-selection" style="margin-left: 8px;">Clear</button>
+function updateSelectionBar() {
+    let bar = document.getElementById('selection-bar');
+    if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'selection-bar';
+        bar.className = 'selection-bar';
+        bar.innerHTML = `
+            <span class="selection-count">0 selected</span>
+            <div class="selection-actions">
+                <button data-action="play-selected">Play</button>
+                <button data-action="add-to-queue-selected">Add to queue</button>
+                <button data-action="add-to-playlist-selected">Add to playlist</button>
+                <button data-action="download-selected">Download</button>
+                <button data-action="like-selected">Like</button>
+            </div>
+            <button data-action="clear-selection" style="margin-left: 8px;">Clear</button>
             `;
-            document.body.appendChild(bar);
+        document.body.appendChild(bar);
 
-            bar.querySelectorAll('button').forEach((btn) => {
-                btn.addEventListener('click', () => handleSelectionAction(btn.dataset.action));
-            });
-        }
-
-        const count = trackSelection.selectedIds.size;
-        bar.querySelector('.selection-count').textContent = `${count} selected`;
-        bar.classList.toggle('visible', count > 0);
-    }
-
-    function handleSelectionAction(action) {
-        const selectedIds = getSelectedTracks();
-        if (selectedIds.length === 0) return;
-
-        const mainContent = document.getElementById('main-content');
-        const selectedTracks = [];
-        mainContent.querySelectorAll('.track-item').forEach((item) => {
-            if (trackSelection.selectedIds.has(item.dataset.trackId)) {
-                const track = trackDataStore.get(item);
-                if (track) selectedTracks.push(track);
-            }
+        bar.querySelectorAll('button').forEach((btn) => {
+            btn.addEventListener('click', () => handleSelectionAction(btn.dataset.action));
         });
-
-        switch (action) {
-            case 'play-selected':
-                if (selectedTracks.length > 0) {
-                    player.setQueue(selectedTracks, 0);
-                    document.getElementById('shuffle-btn').classList.remove('active');
-                    player.playTrackFromQueue();
-                }
-                break;
-            case 'add-to-queue-selected':
-                if (selectedTracks.length > 0) {
-                    player.addToQueue(selectedTracks);
-                    if (window.renderQueueFunction) window.renderQueueFunction();
-                    showNotification(`Added ${selectedTracks.length} tracks to queue`);
-                }
-                break;
-            case 'add-to-playlist-selected':
-                if (selectedTracks.length > 0) {
-                    showMultiSelectPlaylistModal(selectedTracks);
-                }
-                break;
-            case 'download-selected':
-                if (selectedTracks.length > 0) {
-                    selectedTracks.forEach((track) => {
-                        downloadTrackWithMetadata(track, downloadQualitySettings.getQuality(), api, lyricsManager);
-                    });
-                    showNotification(`Downloading ${selectedTracks.length} tracks`);
-                }
-                break;
-            case 'like-selected':
-                selectedTracks.forEach(async (track) => {
-                    const added = await db.toggleFavorite('track', track);
-                    syncManager.syncLibraryItem('track', track, added);
-                });
-                showNotification(`Liked ${selectedTracks.length} tracks`);
-                break;
-            case 'clear-selection':
-                clearSelection();
-                break;
-        }
     }
 
+    const count = trackSelection.selectedIds.size;
+    bar.querySelector('.selection-count').textContent = `${count} selected`;
+    bar.classList.toggle('visible', count > 0);
+}
+
+async function handleSelectionAction(action) {
+    const selectedIds = getSelectedTracks();
+    if (selectedIds.length === 0) return;
+
+    const mainContent = document.getElementById('main-content');
+    const selectedTracks = [];
+    mainContent.querySelectorAll('.track-item').forEach((item) => {
+        if (trackSelection.selectedIds.has(item.dataset.trackId)) {
+            const track = trackDataStore.get(item);
+            if (track) selectedTracks.push(track);
+        }
+    });
+
+    switch (action) {
+        case 'play-selected':
+            if (selectedTracks.length > 0) {
+                Player.instance.setQueue(selectedTracks, 0);
+                document.getElementById('shuffle-btn').classList.remove('active');
+                Player.instance.playTrackFromQueue();
+            }
+            break;
+        case 'add-to-queue-selected':
+            if (selectedTracks.length > 0) {
+                Player.instance.addToQueue(selectedTracks);
+                if (window.renderQueueFunction) await window.renderQueueFunction();
+                showNotification(`Added ${selectedTracks.length} tracks to queue`);
+            }
+            break;
+        case 'add-to-playlist-selected':
+            if (selectedTracks.length > 0) {
+                await showMultiSelectPlaylistModal(selectedTracks);
+            }
+            break;
+        case 'download-selected':
+            if (selectedTracks.length > 0) {
+                showNotification(`Downloading ${selectedTracks.length} tracks`);
+                for (const track of selectedTracks) {
+                    await downloadTrackWithMetadata(
+                        track,
+                        downloadQualitySettings.getQuality(),
+                        MusicAPI.instance.tidalAPI,
+                        LyricsManager.instance
+                    );
+                }
+            }
+            break;
+        case 'like-selected':
+            for (const track of selectedTracks) {
+                const added = await db.toggleFavorite('track', track);
+                await syncManager.syncLibraryItem('track', track, added);
+            }
+            showNotification(`Liked ${selectedTracks.length} tracks`);
+            break;
+        case 'clear-selection':
+            clearSelection();
+            break;
+    }
+}
+
+export function initializePlayerEvents(player, audioPlayer, scrobbler, ui) {
     if (homeStartRadioBtn) {
         homeStartRadioBtn.addEventListener('click', async () => {
             await player.enableRadio();
@@ -416,25 +421,22 @@ export function initializePlayerEvents(player, audioPlayer, scrobbler, ui) {
             }
         });
 
-        element.addEventListener('play', () => {
+        element.addEventListener('play', async () => {
             if (player.activeElement !== element) return;
 
             // Initialize audio context manager for EQ (only once)
             if (!audioContextManager.isReady()) {
                 audioContextManager.init(element);
             }
-            audioContextManager.resume();
+            await audioContextManager.resume();
 
             if (player.currentTrack) {
-                // Track play event
-                trackPlayTrack(player.currentTrack);
-
                 // Scrobble
                 if (scrobbler.isAuthenticated()) {
                     scrobbler.updateNowPlaying(player.currentTrack);
                 }
 
-                updateWaveform();
+                await updateWaveform();
             }
 
             playPauseBtn.innerHTML = SVG_PAUSE(20);
@@ -451,9 +453,6 @@ export function initializePlayerEvents(player, audioPlayer, scrobbler, ui) {
 
         element.addEventListener('pause', () => {
             if (player.activeElement !== element) return;
-            if (player.currentTrack) {
-                trackPauseTrack(player.currentTrack);
-            }
             playPauseBtn.innerHTML = SVG_PLAY(20);
             player.updateMediaSessionPlaybackState();
             player.updateMediaSessionPositionState();
@@ -479,7 +478,7 @@ export function initializePlayerEvents(player, audioPlayer, scrobbler, ui) {
                 if (currentTime >= 10 && player.currentTrack && player.currentTrack.id !== historyLoggedTrackId) {
                     historyLoggedTrackId = player.currentTrack.id;
                     const historyEntry = await db.addToHistory(player.currentTrack);
-                    syncManager.syncHistoryItem(historyEntry);
+                    await syncManager.syncHistoryItem(historyEntry);
 
                     if (window.location.hash === '#recent') {
                         ui.renderRecentPage();
@@ -539,8 +538,6 @@ export function initializePlayerEvents(player, audioPlayer, scrobbler, ui) {
                 if (player.isFallbackInProgress || canFallback) {
                     return;
                 }
-                console.warn('Skipping to next track due to playback error');
-                setTimeout(() => player.playNext(), 1000);
             }
         });
 
@@ -556,33 +553,29 @@ export function initializePlayerEvents(player, audioPlayer, scrobbler, ui) {
         setupMediaListeners(player.video);
     }
 
-    playPauseBtn.addEventListener('click', () => {
-        hapticMedium();
+    playPauseBtn.addEventListener('click', async () => {
+        await hapticMedium();
         player.handlePlayPause();
     });
-    nextBtn.addEventListener('click', () => {
-        hapticMedium();
-        trackSkipTrack(player.currentTrack, 'next');
+    nextBtn.addEventListener('click', async () => {
+        await hapticMedium();
         player.playNext();
     });
-    prevBtn.addEventListener('click', () => {
-        hapticMedium();
-        trackSkipTrack(player.currentTrack, 'previous');
+    prevBtn.addEventListener('click', async () => {
+        await hapticMedium();
         player.playPrev();
     });
 
-    shuffleBtn.addEventListener('click', () => {
-        hapticLight();
+    shuffleBtn.addEventListener('click', async () => {
+        await hapticLight();
         player.toggleShuffle();
-        trackToggleShuffle(player.shuffleActive);
         shuffleBtn.classList.toggle('active', player.shuffleActive);
-        if (window.renderQueueFunction) window.renderQueueFunction();
+        if (window.renderQueueFunction) await window.renderQueueFunction();
     });
 
-    repeatBtn.addEventListener('click', () => {
-        hapticLight();
-        const mode = player.toggleRepeat();
-        trackToggleRepeat(mode === REPEAT_MODE.OFF ? 'off' : mode === REPEAT_MODE.ALL ? 'all' : 'one');
+    repeatBtn.addEventListener('click', async () => {
+        await hapticLight();
+        const mode = await player.toggleRepeat();
         repeatBtn.classList.toggle('active', mode !== REPEAT_MODE.OFF);
         repeatBtn.classList.toggle('repeat-one', mode === REPEAT_MODE.ONE);
         repeatBtn.title =
@@ -608,7 +601,6 @@ export function initializePlayerEvents(player, audioPlayer, scrobbler, ui) {
         sleepTimerBtnDesktop.addEventListener('click', () => {
             if (player.isSleepTimerActive()) {
                 player.clearSleepTimer();
-                trackCancelSleepTimer();
                 showNotification('Sleep timer cancelled');
             } else {
                 showSleepTimerModal(player);
@@ -621,7 +613,6 @@ export function initializePlayerEvents(player, audioPlayer, scrobbler, ui) {
         sleepTimerBtnMobile.addEventListener('click', () => {
             if (player.isSleepTimerActive()) {
                 player.clearSleepTimer();
-                trackCancelSleepTimer();
                 showNotification('Sleep timer cancelled');
             } else {
                 showSleepTimerModal(player);
@@ -738,7 +729,7 @@ export function initializePlayerEvents(player, audioPlayer, scrobbler, ui) {
             progressBar.style.maskImage = '';
 
             try {
-                const streamUrl = await player.api.getStreamUrl(player.currentTrack.id, 'LOW');
+                const { url: streamUrl } = await player.api.getStreamUrl(player.currentTrack.id, 'LOW');
                 const waveformData = await waveformGenerator.getWaveform(streamUrl, player.currentTrack.id);
 
                 if (waveformData && currentTrackIdForWaveform === player.currentTrack.id) {
@@ -792,7 +783,7 @@ export function initializePlayerEvents(player, audioPlayer, scrobbler, ui) {
         }
     };
 
-    window.addEventListener('waveform-toggle', (e) => {
+    window.addEventListener('waveform-toggle', async (e) => {
         if (!e.detail.enabled) {
             const progressBar = document.getElementById('progress-bar');
             const playerControls = document.querySelector('.player-controls');
@@ -805,7 +796,7 @@ export function initializePlayerEvents(player, audioPlayer, scrobbler, ui) {
                 playerControls.classList.remove('waveform-loaded');
             }
         }
-        updateWaveform();
+        await updateWaveform();
     });
 
     if (volumeBtn) {
@@ -1185,7 +1176,7 @@ export async function showAddToPlaylistModal(track) {
             e.stopPropagation();
             await db.removeTrackFromPlaylist(playlistId, track.id);
             const updatedPlaylist = await db.getPlaylist(playlistId);
-            syncManager.syncUserPlaylist(updatedPlaylist, 'update');
+            await syncManager.syncUserPlaylist(updatedPlaylist, 'update');
             showNotification(`Removed from playlist: ${option.querySelector('span').textContent}`);
             await renderModal();
         } else {
@@ -1193,7 +1184,7 @@ export async function showAddToPlaylistModal(track) {
 
             await db.addTrackToPlaylist(playlistId, track);
             const updatedPlaylist = await db.getPlaylist(playlistId);
-            syncManager.syncUserPlaylist(updatedPlaylist, 'update');
+            await syncManager.syncUserPlaylist(updatedPlaylist, 'update');
             showNotification(`Added to playlist: ${option.querySelector('span').textContent}`);
             closeModal();
         }
@@ -1236,6 +1227,15 @@ export async function handleTrackAction(
     ];
     if (item.isUnavailable && forbiddenForUnavailable.includes(action)) {
         showNotification('This track is unavailable.');
+        return;
+    }
+
+    if (action === 'request-song') {
+        if (partyManager.currentParty) {
+            await partyManager.requestSong(item);
+        } else {
+            showNotification('You are not in a listening party');
+        }
         return;
     }
 
@@ -1346,14 +1346,14 @@ export async function handleTrackAction(
 
             if (action === 'add-to-queue') {
                 player.addToQueue(tracks);
-                if (window.renderQueueFunction) window.renderQueueFunction();
+                if (window.renderQueueFunction) await window.renderQueueFunction();
                 showNotification(`Added ${tracks.length} tracks to queue`);
                 return;
             }
 
             if (action === 'play-next') {
                 player.addNextToQueue(tracks);
-                if (window.renderQueueFunction) window.renderQueueFunction();
+                if (window.renderQueueFunction) await window.renderQueueFunction();
                 showNotification(`Playing next: ${tracks.length} tracks`);
                 return;
             }
@@ -1410,53 +1410,35 @@ export async function handleTrackAction(
     // Individual Track Actions
     // Check if track/artist is blocked
     const { contentBlockingSettings } = await import('./storage.js');
-    if (type === 'track' && contentBlockingSettings.shouldHideTrack(item)) {
+    const BLOCKED_PLAY_ACTIONS = new Set(['play-card', 'add-to-queue', 'play-next', 'start-mix']);
+    if (type === 'track' && BLOCKED_PLAY_ACTIONS.has(action) && contentBlockingSettings.shouldHideTrack(item)) {
         showNotification('This track is blocked');
         return;
     }
 
     if (action === 'add-to-queue') {
-        trackAddToQueue(item, 'end');
         player.addToQueue(item);
-        if (window.renderQueueFunction) window.renderQueueFunction();
+        if (window.renderQueueFunction) await window.renderQueueFunction();
         showNotification(`Added to queue: ${item.title}`);
     } else if (action === 'play-next') {
-        trackPlayNext(item);
         player.addNextToQueue(item);
-        if (window.renderQueueFunction) window.renderQueueFunction();
+        if (window.renderQueueFunction) await window.renderQueueFunction();
         showNotification(`Playing next: ${item.title}`);
     } else if (action === 'play-card') {
         player.setQueue([item], 0);
         player.playAtIndex(0);
         showNotification(`Playing track: ${item.title}`);
     } else if (action === 'start-mix') {
-        trackStartMix(type, item);
         if (item.mixes?.TRACK_MIX) {
             navigate(`/mix/${item.mixes.TRACK_MIX}`);
         } else {
             showNotification('No mix available for this track');
         }
     } else if (action === 'download') {
-        trackDownloadTrack(item, downloadQualitySettings.getQuality());
         await downloadTrackWithMetadata(item, downloadQualitySettings.getQuality(), api, lyricsManager);
     } else if (action === 'toggle-like') {
         const added = await db.toggleFavorite(type, item);
-        syncManager.syncLibraryItem(type, item, added);
-
-        // Track like/unlike
-        if (added) {
-            if (type === 'track') trackLikeTrack(item);
-            else if (type === 'video') trackEvent('Like Video', { title: item.title });
-            else if (type === 'album') trackLikeAlbum(item);
-            else if (type === 'artist') trackLikeArtist(item);
-            else if (type === 'playlist' || type === 'user-playlist') trackLikePlaylist(item);
-        } else {
-            if (type === 'track') trackUnlikeTrack(item);
-            else if (type === 'video') trackEvent('Unlike Video', { title: item.title });
-            else if (type === 'album') trackUnlikeAlbum(item);
-            else if (type === 'artist') trackUnlikeArtist(item);
-            else if (type === 'playlist' || type === 'user-playlist') trackUnlikePlaylist(item);
-        }
+        await syncManager.syncLibraryItem(type, item, added);
 
         if (added && type === 'track' && scrobbler) {
             if (lastFMStorage.isEnabled() && lastFMStorage.shouldLoveOnLike()) {
@@ -1697,7 +1679,7 @@ export async function handleTrackAction(
                 e.stopPropagation();
                 await db.removeTrackFromPlaylist(playlistId, item.id);
                 const updatedPlaylist = await db.getPlaylist(playlistId);
-                syncManager.syncUserPlaylist(updatedPlaylist, 'update');
+                await syncManager.syncUserPlaylist(updatedPlaylist, 'update');
                 showNotification(`Removed from playlist: ${option.querySelector('span').textContent}`);
                 await renderModal();
             } else {
@@ -1705,7 +1687,7 @@ export async function handleTrackAction(
 
                 await db.addTrackToPlaylist(playlistId, item);
                 const updatedPlaylist = await db.getPlaylist(playlistId);
-                syncManager.syncUserPlaylist(updatedPlaylist, 'update');
+                await syncManager.syncUserPlaylist(updatedPlaylist, 'update');
                 showNotification(`Added to playlist: ${option.querySelector('span').textContent}`);
                 closeModal();
             }
@@ -1742,10 +1724,12 @@ export async function handleTrackAction(
         const typeForUrl = type === 'user-playlist' ? 'userplaylist' : type;
         const url = getShareUrl(storedHref ? storedHref : `/${typeForUrl}/${item.id || item.uuid}`);
 
-        trackCopyLink(type, item.id || item.uuid);
-        navigator.clipboard.writeText(url).then(() => {
-            showNotification('Link copied to clipboard!');
-        });
+        await navigator.clipboard
+            .writeText(url)
+            .then(() => {
+                showNotification('Link copied to clipboard!');
+            })
+            .catch(console.error);
     } else if (action === 'open-in-new-tab') {
         // Use stored href from card if available, otherwise construct URL
         const contextMenu = document.getElementById('context-menu');
@@ -1754,7 +1738,6 @@ export async function handleTrackAction(
             ? `${window.location.origin}${storedHref}`
             : `${window.location.origin}/${type}/${item.id || item.uuid}`;
 
-        trackOpenInNewTab(type, item.id || item.uuid);
         window.open(url, '_blank');
     } else if (action === 'open-in-harmony') {
         const albumId = item.id;
@@ -1932,11 +1915,9 @@ export async function handleTrackAction(
         const { contentBlockingSettings } = await import('./storage.js');
         if (contentBlockingSettings.isTrackBlocked(item.id)) {
             contentBlockingSettings.unblockTrack(item.id);
-            trackUnblockTrack(item);
             showNotification(`Unblocked track: ${item.title}`);
         } else {
             contentBlockingSettings.blockTrack(item);
-            trackBlockTrack(item);
             showNotification(`Blocked track: ${item.title}`);
         }
     } else if (action === 'block-album') {
@@ -1955,11 +1936,9 @@ export async function handleTrackAction(
 
         if (contentBlockingSettings.isAlbumBlocked(albumId)) {
             contentBlockingSettings.unblockAlbum(albumId);
-            trackUnblockAlbum(albumObj);
             showNotification(`Unblocked album: ${albumTitle || 'Unknown Album'}`);
         } else {
             contentBlockingSettings.blockAlbum(albumObj);
-            trackBlockAlbum(albumObj);
             showNotification(`Blocked album: ${albumTitle || 'Unknown Album'}`);
         }
     } else if (action === 'block-artist') {
@@ -1976,11 +1955,9 @@ export async function handleTrackAction(
 
         if (contentBlockingSettings.isArtistBlocked(artistId)) {
             contentBlockingSettings.unblockArtist(artistId);
-            trackUnblockArtist(artistObj);
             showNotification(`Unblocked artist: ${artistName || 'Unknown Artist'}`);
         } else {
             contentBlockingSettings.blockArtist(artistObj);
-            trackBlockArtist(artistObj);
             showNotification(`Blocked artist: ${artistName || 'Unknown Artist'}`);
         }
     }
@@ -2054,6 +2031,11 @@ async function updateContextMenuLikeState(contextMenu, contextTrack) {
             item.style.display = types.includes(type) ? 'block' : 'none';
         } else {
             item.style.display = 'block';
+        }
+        if (item.dataset.action === 'request-song') {
+            if (!partyManager.currentParty) {
+                item.style.display = 'none';
+            }
         }
 
         // Update labels for Like/Save
@@ -2234,7 +2216,7 @@ export function initializeTrackInteractions(player, api, mainContent, contextMen
         }
 
         const trackItem = e.target.closest('.track-item');
-        if (trackItem && (trackItem.classList.contains('unavailable') || trackItem.classList.contains('blocked'))) {
+        if (trackItem && trackItem.classList.contains('unavailable')) {
             return;
         }
         if (isLongPress && longPressTrackItem === trackItem) {
@@ -2242,6 +2224,7 @@ export function initializeTrackInteractions(player, api, mainContent, contextMen
         }
         if (
             trackItem &&
+            !trackItem.classList.contains('blocked') &&
             !trackItem.dataset.queueIndex &&
             !e.target.closest('.remove-from-playlist-btn') &&
             !e.target.closest('.artist-link') &&
@@ -2325,17 +2308,13 @@ export function initializeTrackInteractions(player, api, mainContent, contextMen
 
         const card = e.target.closest('.card');
         if (card) {
-            // Don't navigate if card is blocked (unless clicking menu button)
-            if (card.classList.contains('blocked') && !e.target.closest('.card-menu-btn')) {
-                return;
-            }
-
             if (e.target.closest('.edit-playlist-btn') || e.target.closest('.delete-playlist-btn')) {
                 return;
             }
 
             const libraryTracksContainer = card.closest('#library-tracks-container');
             if (libraryTracksContainer && card.dataset.trackId) {
+                if (card.classList.contains('blocked')) return;
                 if (
                     e.target.closest('.like-btn') ||
                     e.target.closest('.card-play-btn') ||
@@ -2451,7 +2430,39 @@ export function initializeTrackInteractions(player, api, mainContent, contextMen
         }
     });
 
-    document.addEventListener('click', (e) => {
+    document.querySelector('.now-playing-bar')?.addEventListener('contextmenu', async (e) => {
+        if (!player.currentTrack) return;
+        const track = player.currentTrack;
+        if (track.isLocal) return;
+
+        const target = e.target.closest('.cover, .title, .album, .artist');
+        if (!target) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (contextMenu._originalHTML) {
+            contextMenu.innerHTML = contextMenu._originalHTML;
+            contextMenu._originalHTML = null;
+        }
+
+        contextTrack = track;
+        contextMenu._contextTrack = track;
+        contextMenu._contextType = track.type || 'track';
+        contextMenu._selectedTracks = [];
+
+        const unavailableActions = ['play-next', 'add-to-queue', 'download', 'track-mix'];
+        contextMenu.querySelectorAll('[data-action]').forEach((btn) => {
+            if (unavailableActions.includes(btn.dataset.action)) {
+                btn.style.display = track.isUnavailable ? 'none' : 'block';
+            }
+        });
+
+        await updateContextMenuLikeState(contextMenu, track);
+        positionMenu(contextMenu, e.clientX, e.clientY);
+    });
+
+    document.addEventListener('click', async (e) => {
         if (contextMenu.style.display === 'block') {
             if (contextMenu._originalHTML) {
                 contextMenu.innerHTML = contextMenu._originalHTML;
@@ -2471,7 +2482,7 @@ export function initializeTrackInteractions(player, api, mainContent, contextMen
         }
     });
 
-    document.addEventListener('keydown', (e) => {
+    document.addEventListener('keydown', async (e) => {
         if (e.key === 'Escape' && trackSelection.isSelecting) {
             clearSelection();
         }
@@ -2524,45 +2535,47 @@ export function initializeTrackInteractions(player, api, mainContent, contextMen
                 switch (action) {
                     case 'play-next':
                         selectedTracks.forEach((t) => {
-                            trackPlayNext(t);
                             player.addNextToQueue(t);
                         });
-                        if (window.renderQueueFunction) window.renderQueueFunction();
+                        if (window.renderQueueFunction) await window.renderQueueFunction();
                         showNotification(`Playing next: ${selectedTracks.length} tracks`);
                         clearSelection();
                         break;
                     case 'add-to-queue':
                         player.addToQueue(selectedTracks);
-                        if (window.renderQueueFunction) window.renderQueueFunction();
+                        if (window.renderQueueFunction) await window.renderQueueFunction();
                         showNotification(`Added ${selectedTracks.length} tracks to queue`);
                         clearSelection();
                         break;
                     case 'toggle-like':
                         selectedTracks.forEach(async (t) => {
                             const added = await db.toggleFavorite('track', t);
-                            syncManager.syncLibraryItem('track', t, added);
+                            await syncManager.syncLibraryItem('track', t, added);
                         });
                         showNotification(`Liked ${selectedTracks.length} tracks`);
                         clearSelection();
                         break;
                     case 'add-to-playlist':
-                        showMultiSelectPlaylistModal(selectedTracks);
+                        await showMultiSelectPlaylistModal(selectedTracks);
                         clearSelection();
                         break;
                     case 'download':
-                        selectedTracks.forEach((t) => {
-                            downloadTrackWithMetadata(t, downloadQualitySettings.getQuality(), api, lyricsManager);
-                        });
                         showNotification(`Downloading ${selectedTracks.length} tracks`);
                         clearSelection();
+                        for (const track of selectedTracks) {
+                            await downloadTrackWithMetadata(
+                                track,
+                                downloadQualitySettings.getQuality(),
+                                api,
+                                lyricsManager
+                            );
+                        }
                         break;
                     default:
                         clearSelection();
                         break;
                 }
             } else {
-                // Track context menu action
-                trackContextMenuAction(action, type, track);
                 await handleTrackAction(action, track, player, api, lyricsManager, type, ui, scrobbler, target.dataset);
             }
         }
@@ -2725,7 +2738,6 @@ function showSleepTimerModal(player) {
 
             if (minutes) {
                 player.setSleepTimer(minutes);
-                trackSetSleepTimer(minutes);
                 showNotification(`Sleep timer set for ${minutes} minute${minutes === 1 ? '' : 's'}`);
                 closeModal();
             }

@@ -5,10 +5,7 @@ import {
     delay,
     isTrackUnavailable,
     getExtensionFromBlob,
-    getTrackTitle,
-    getFullArtistString,
     getTrackDiscNumber,
-    getMimeType,
 } from './utils.js';
 import { trackDateSettings } from './storage.js';
 import { db } from './db.js';
@@ -71,8 +68,8 @@ export class LosslessAPI {
         };
 
         setInterval(
-            () => {
-                this.cache.clearExpired();
+            async () => {
+                await this.cache.clearExpired();
                 this.pruneStreamCache();
             },
             1000 * 60 * 5
@@ -515,7 +512,7 @@ export class LosslessAPI {
             await this.cache.set('search_all', query, results);
 
             return results;
-        } catch (error) {
+        } catch (_error) {
             // Fallback to individual searches if the backend proxy doesn't support ?q= or throws
             const [tracks, videos, artists, albums, playlists] = await Promise.all([
                 this.searchTracks(query, options).catch(() => ({ items: [] })),
@@ -1379,18 +1376,20 @@ export class LosslessAPI {
         entries.forEach((entry) => scan(entry, visited));
         scan(primaryData, visited);
 
+        const matchesArtistId = (item) => {
+            const candidateIds = [
+                item.artist?.id,
+                ...(Array.isArray(item.artists) ? item.artists.map((a) => a.id) : []),
+            ].filter((id) => id != null);
+            return candidateIds.some((id) => Number(id) === Number(artistId));
+        };
+
         if (!options.lightweight) {
             try {
                 const videoSearch = await this.searchVideos(artist.name);
                 if (videoSearch && videoSearch.items) {
-                    const numericArtistId = Number(artistId);
                     for (const item of videoSearch.items) {
-                        const itemArtistId = item.artist?.id;
-                        const matchesArtist =
-                            itemArtistId === numericArtistId ||
-                            (Array.isArray(item.artists) && item.artists.some((a) => a.id === numericArtistId));
-
-                        if (matchesArtist && !videoMap.has(item.id)) {
+                        if (matchesArtistId(item) && !videoMap.has(item.id)) {
                             videoMap.set(item.id, item);
                         }
                     }
@@ -1400,7 +1399,7 @@ export class LosslessAPI {
             }
         }
 
-        const rawReleases = Array.from(albumMap.values());
+        const rawReleases = Array.from(albumMap.values()).filter(matchesArtistId);
         const allReleases = this.deduplicateAlbums(rawReleases).sort(
             (a, b) => new Date(b.releaseDate || 0) - new Date(a.releaseDate || 0)
         );
@@ -1409,6 +1408,7 @@ export class LosslessAPI {
         const albums = allReleases.filter((a) => !eps.includes(a));
 
         const topTracks = Array.from(trackMap.values())
+            .filter(matchesArtistId)
             .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
             .slice(0, 15);
 
@@ -1542,15 +1542,10 @@ export class LosslessAPI {
         if (cached) return cached;
 
         try {
-            const url = `https://api.tidal.com/v1/artists/${artistId}/bio?locale=en_US&countryCode=GB`;
-            const response = await fetch(url, {
-                headers: {
-                    'X-Tidal-Token': TIDAL_V2_TOKEN,
-                },
-            });
+            const response = await HiFiClient.instance.query(`/artist/bio/?id=${artistId}`);
 
             if (response.ok) {
-                const data = await response.json();
+                const { data } = await response.json();
                 if (data && data.text) {
                     const bio = {
                         text: data.text,
@@ -1806,7 +1801,9 @@ export class LosslessAPI {
                         a.canPlayType('audio/mp4; codecs="ec-3"') || a.canPlayType('audio/mp4; codecs="eac3"')
                     );
                 }
-            } catch (e) {}
+            } catch {
+                // Atmos codec probe - intentionally swallowed; canPlayAtmos stays false
+            }
 
             const paramsArray = [];
 
@@ -1867,7 +1864,7 @@ export class LosslessAPI {
             } else {
                 throw new Error('No URI in trackManifests response');
             }
-        } catch (err) {
+        } catch (_err) {
             // Fallback to /track endpoint
         }
 
@@ -2265,6 +2262,19 @@ export class LosslessAPI {
         return `https://resources.tidal.com/images/${formattedId}/${size}x${size}.jpg`;
     }
 
+    getCoverSrcset(id) {
+        if (
+            !id ||
+            (typeof id === 'string' && (id.startsWith('http') || id.startsWith('blob:') || id.startsWith('assets/')))
+        ) {
+            return '';
+        }
+
+        const formattedId = String(id).replace(/-/g, '/');
+        const baseUrl = `https://resources.tidal.com/images/${formattedId}`;
+        return `${baseUrl}/160x160.jpg 160w, ${baseUrl}/320x320.jpg 320w, ${baseUrl}/640x640.jpg 640w`;
+    }
+
     getArtistPictureUrl(id, size = '320') {
         if (!id) {
             return `https://picsum.photos/seed/${Math.random()}/${size}`;
@@ -2276,6 +2286,16 @@ export class LosslessAPI {
 
         const formattedId = String(id).replace(/-/g, '/');
         return `https://resources.tidal.com/images/${formattedId}/${size}x${size}.jpg`;
+    }
+
+    getArtistPictureSrcset(id) {
+        if (!id || (typeof id === 'string' && (id.startsWith('blob:') || id.startsWith('assets/')))) {
+            return '';
+        }
+
+        const formattedId = String(id).replace(/-/g, '/');
+        const baseUrl = `https://resources.tidal.com/images/${formattedId}`;
+        return `${baseUrl}/160x160.jpg 160w, ${baseUrl}/320x320.jpg 320w, ${baseUrl}/640x640.jpg 640w`;
     }
 
     getVideoCoverUrl(imageId, size = '1280') {
