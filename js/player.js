@@ -449,7 +449,7 @@ export class Player {
             });
 
             navigator.mediaSession.setActionHandler('pause', () => {
-                this.if (typeof activeElement.pause === 'function') activeElement.pause();
+                if (typeof activeElement.pause === 'function') activeElement.pause();
             });
 
             navigator.mediaSession.setActionHandler('previoustrack', async () => {
@@ -491,7 +491,7 @@ export class Player {
             });
 
             navigator.mediaSession.setActionHandler('stop', () => {
-                this.if (typeof activeElement.pause === 'function') activeElement.pause();
+                if (typeof activeElement.pause === 'function') activeElement.pause();
                 this.activeElement.currentTime = 0;
                 this.updateMediaSessionPlaybackState();
             });
@@ -1254,12 +1254,12 @@ export class Player {
                         await this.addToQueue(newTracks);
                         await this.playNext(0);
                     } else {
-                        this.if (typeof activeElement.pause === 'function') activeElement.pause();
+                        if (typeof activeElement.pause === 'function') activeElement.pause();
                     }
                 });
                 return;
             }
-            this.if (typeof activeElement.pause === 'function') activeElement.pause();
+            if (typeof activeElement.pause === 'function') activeElement.pause();
             return;
         }
 
@@ -2226,7 +2226,7 @@ export class Player {
 
         this.sleepTimer = setTimeout(
             () => {
-                this.if (typeof activeElement.pause === 'function') activeElement.pause();
+                if (typeof activeElement.pause === 'function') activeElement.pause();
                 this.clearSleepTimer();
                 this.updateSleepTimerUI();
             },
