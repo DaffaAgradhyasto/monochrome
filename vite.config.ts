@@ -102,5 +102,9 @@ export default defineConfig(({ mode }) => {
                 manifest: false, // Use existing public/manifest.json
             }),
         ],
+        test: {
+            environment: 'happy-dom',
+            globals: true,
+        },
     };
 });
