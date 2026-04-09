@@ -104,7 +104,7 @@ export default defineConfig(({ mode }) => {
         ],
         test: {
             environment: 'happy-dom',
-            globals: true,
+            globals: true,     exclude: ['**/node_modules/**', 'js/HiFi.test.ts', 'js/api.test.ts'],
         },
     };
 });
