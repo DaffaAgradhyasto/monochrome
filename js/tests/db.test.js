@@ -1,4 +1,4 @@
-import { expect, test, describe, beforeEach, afterEach, vi } from 'vitest';
+import 'fake-indexeddb/auto'; import { expect, test, describe, beforeEach, afterEach, vi } from 'vitest';
 import { MusicDatabase } from '../db.js';
 
 describe('MusicDatabase', () => {
