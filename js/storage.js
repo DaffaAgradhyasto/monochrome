@@ -428,8 +428,7 @@ export const lastFMStorage = {
     },
 
     setScrobblePercentage(percentage) {
-        const parsed = parseInt(percentage, 10);
-        const validPercentage = Math.max(1, Math.min(100, isNaN(parsed) ? 75 : parsed));
+        const validPercentage = Math.max(1, Math.min(100, parseInt(percentage, 10) || 75));
         localStorage.setItem(this.SCROBBLE_PERCENTAGE_KEY, validPercentage.toString());
     },
 
@@ -606,72 +605,6 @@ export const dynamicColorSettings = {
 
     setEnabled(enabled) {
         localStorage.setItem(this.STORAGE_KEY, enabled ? 'true' : 'false');
-    },
-};
-
-export const fullscreenCoverNoRoundSettings = {
-    STORAGE_KEY: 'fullscreen-cover-no-round',
-
-    isEnabled() {
-        try {
-            return localStorage.getItem(this.STORAGE_KEY) !== 'false';
-        } catch {
-            return true;
-        }
-    },
-
-    setEnabled(enabled) {
-        localStorage.setItem(this.STORAGE_KEY, enabled ? 'true' : 'false');
-    },
-};
-
-export const fullscreenCoverVanillaTiltSettings = {
-    STORAGE_KEY: 'fullscreen-cover-vanilla-tilt',
-
-    isEnabled() {
-        try {
-            return localStorage.getItem(this.STORAGE_KEY) !== 'false';
-        } catch {
-            return true;
-        }
-    },
-
-    setEnabled(enabled) {
-        localStorage.setItem(this.STORAGE_KEY, enabled ? 'true' : 'false');
-    },
-};
-
-export const fullscreenCoverTiltDistanceSettings = {
-    STORAGE_KEY: 'fullscreen-cover-tilt-distance',
-
-    getValue() {
-        try {
-            const val = parseInt(localStorage.getItem(this.STORAGE_KEY));
-            return val !== null && !isNaN(val) ? val : 10;
-        } catch {
-            return 10;
-        }
-    },
-
-    setValue(value) {
-        localStorage.setItem(this.STORAGE_KEY, value);
-    },
-};
-
-export const fullscreenCoverTiltSpeedSettings = {
-    STORAGE_KEY: 'fullscreen-cover-tilt-speed',
-
-    getValue() {
-        try {
-            const val = parseInt(localStorage.getItem(this.STORAGE_KEY));
-            return val !== null && !isNaN(val) ? val : 240;
-        } catch {
-            return 240;
-        }
-    },
-
-    setValue(value) {
-        localStorage.setItem(this.STORAGE_KEY, value);
     },
 };
 
@@ -944,9 +877,9 @@ export const visualizerSettings = {
 
     getPreset() {
         try {
-            return localStorage.getItem(this.PRESET_KEY) || 'kawarp';
+            return localStorage.getItem(this.PRESET_KEY) || 'butterchurn';
         } catch {
-            return 'kawarp';
+            return 'butterchurn';
         }
     },
 
@@ -1064,8 +997,6 @@ export const visualizerSettings = {
 export const equalizerSettings = {
     ENABLED_KEY: 'equalizer-enabled',
     GAINS_KEY: 'equalizer-gains',
-    BAND_TYPES_KEY: 'equalizer-band-types',
-    BAND_QS_KEY: 'equalizer-band-qs',
     PRESET_KEY: 'equalizer-preset',
     CUSTOM_PRESETS_KEY: 'equalizer-custom-presets',
     BAND_COUNT_KEY: 'equalizer-band-count',
@@ -1074,7 +1005,6 @@ export const equalizerSettings = {
     FREQ_MIN_KEY: 'equalizer-freq-min',
     FREQ_MAX_KEY: 'equalizer-freq-max',
     PREAMP_KEY: 'equalizer-preamp',
-    CUSTOM_FREQUENCIES_KEY: 'equalizer-custom-frequencies',
     DEFAULT_BAND_COUNT: 16,
     MIN_BANDS: 3,
     MAX_BANDS: 32,
@@ -1119,10 +1049,9 @@ export const equalizerSettings = {
     },
 
     setBandCount(count) {
-        const parsedCount = parseInt(count, 10);
         const validCount = Math.max(
             this.MIN_BANDS,
-            Math.min(this.MAX_BANDS, isNaN(parsedCount) ? this.DEFAULT_BAND_COUNT : parsedCount)
+            Math.min(this.MAX_BANDS, parseInt(count, 10) || this.DEFAULT_BAND_COUNT)
         );
         localStorage.setItem(this.BAND_COUNT_KEY, validCount.toString());
     },
@@ -1344,100 +1273,6 @@ export const equalizerSettings = {
         }
     },
 
-    getCustomFrequencies(bandCount) {
-        const count = bandCount || this.getBandCount();
-        try {
-            const stored = localStorage.getItem(this.CUSTOM_FREQUENCIES_KEY);
-            if (stored) {
-                const freqs = JSON.parse(stored);
-                if (Array.isArray(freqs) && freqs.length === count) {
-                    return freqs;
-                }
-            }
-        } catch {
-            /* ignore */
-        }
-        return null;
-    },
-
-    setCustomFrequencies(frequencies) {
-        try {
-            if (
-                Array.isArray(frequencies) &&
-                frequencies.length >= this.MIN_BANDS &&
-                frequencies.length <= this.MAX_BANDS
-            ) {
-                localStorage.setItem(this.CUSTOM_FREQUENCIES_KEY, JSON.stringify(frequencies));
-            }
-        } catch (e) {
-            console.warn('[EQ] Failed to save custom frequencies:', e);
-        }
-    },
-
-    clearCustomFrequencies() {
-        try {
-            localStorage.removeItem(this.CUSTOM_FREQUENCIES_KEY);
-        } catch {
-            /* ignore */
-        }
-    },
-
-    getBandTypes(bandCount) {
-        const count = bandCount || this.getBandCount();
-        try {
-            const stored = localStorage.getItem(this.BAND_TYPES_KEY);
-            if (stored) {
-                const types = JSON.parse(stored);
-                if (Array.isArray(types) && types.length === count) {
-                    return types;
-                }
-            }
-        } catch {
-            /* ignore */
-        }
-        return new Array(count).fill('peaking');
-    },
-
-    setBandTypes(types) {
-        try {
-            if (Array.isArray(types) && types.length >= this.MIN_BANDS && types.length <= this.MAX_BANDS) {
-                localStorage.setItem(this.BAND_TYPES_KEY, JSON.stringify(types));
-            }
-        } catch (e) {
-            console.warn('[EQ] Failed to save band types:', e);
-        }
-    },
-
-    getBandQs(bandCount) {
-        const count = bandCount || this.getBandCount();
-        try {
-            const stored = localStorage.getItem(this.BAND_QS_KEY);
-            if (stored) {
-                const qs = JSON.parse(stored);
-                if (Array.isArray(qs) && qs.length === count) {
-                    return qs;
-                }
-                // Interpolate stored Qs to match requested band count instead of discarding
-                if (Array.isArray(qs) && qs.length >= this.MIN_BANDS) {
-                    return this._interpolateGains(qs, count);
-                }
-            }
-        } catch {
-            /* ignore */
-        }
-        return null;
-    },
-
-    setBandQs(qs) {
-        try {
-            if (Array.isArray(qs) && qs.length >= this.MIN_BANDS && qs.length <= this.MAX_BANDS) {
-                localStorage.setItem(this.BAND_QS_KEY, JSON.stringify(qs));
-            }
-        } catch (e) {
-            console.warn('[EQ] Failed to save band Qs:', e);
-        }
-    },
-
     /**
      * Interpolate gains array to match target band count
      */
@@ -1570,195 +1405,6 @@ export const equalizerSettings = {
             return false;
         }
     },
-
-    // ========================================
-    // AutoEQ Profile Storage
-    // ========================================
-    AUTOEQ_PROFILES_KEY: 'autoeq-saved-profiles',
-    AUTOEQ_ACTIVE_PROFILE_KEY: 'autoeq-active-profile',
-    AUTOEQ_SAMPLE_RATE_KEY: 'autoeq-sample-rate',
-
-    getAutoEQProfiles() {
-        try {
-            const stored = localStorage.getItem(this.AUTOEQ_PROFILES_KEY);
-            return stored ? JSON.parse(stored) : {};
-        } catch {
-            return {};
-        }
-    },
-
-    saveAutoEQProfile(profile) {
-        try {
-            const profiles = this.getAutoEQProfiles();
-            const id = profile.id || 'autoeq_' + Date.now();
-            const profileCopy = { ...profile, id };
-            profiles[id] = profileCopy;
-            localStorage.setItem(this.AUTOEQ_PROFILES_KEY, JSON.stringify(profiles));
-            return id;
-        } catch (e) {
-            console.warn('[AutoEQ] Failed to save profile:', e);
-            return false;
-        }
-    },
-
-    deleteAutoEQProfile(profileId) {
-        try {
-            const profiles = this.getAutoEQProfiles();
-            if (profiles[profileId]) {
-                delete profiles[profileId];
-                localStorage.setItem(this.AUTOEQ_PROFILES_KEY, JSON.stringify(profiles));
-                if (this.getActiveAutoEQProfile() === profileId) {
-                    localStorage.removeItem(this.AUTOEQ_ACTIVE_PROFILE_KEY);
-                }
-                return true;
-            }
-            return false;
-        } catch (e) {
-            console.warn('[AutoEQ] Failed to delete profile:', e);
-            return false;
-        }
-    },
-
-    getActiveAutoEQProfile() {
-        try {
-            return localStorage.getItem(this.AUTOEQ_ACTIVE_PROFILE_KEY) || null;
-        } catch {
-            return null;
-        }
-    },
-
-    setActiveAutoEQProfile(profileId) {
-        if (profileId) {
-            localStorage.setItem(this.AUTOEQ_ACTIVE_PROFILE_KEY, profileId);
-        } else {
-            localStorage.removeItem(this.AUTOEQ_ACTIVE_PROFILE_KEY);
-        }
-    },
-
-    getSampleRate() {
-        try {
-            const stored = localStorage.getItem(this.AUTOEQ_SAMPLE_RATE_KEY);
-            const val = parseInt(stored, 10);
-            return [44100, 48000, 96000].includes(val) ? val : 48000;
-        } catch {
-            return 48000;
-        }
-    },
-
-    setSampleRate(rate) {
-        localStorage.setItem(this.AUTOEQ_SAMPLE_RATE_KEY, rate.toString());
-    },
-
-    // ========================================
-    // Last Selected Headphone Persistence
-    // ========================================
-    AUTOEQ_LAST_HEADPHONE_KEY: 'autoeq-last-headphone',
-
-    /**
-     * Save the last selected headphone entry + its measurement data
-     * so it persists across page reloads without re-fetching from GitHub
-     * @param {object} entry - {name, type, path, fileName}
-     * @param {Array} measurementData - [{freq, gain}, ...]
-     */
-    setLastHeadphone(entry, measurementData) {
-        try {
-            localStorage.setItem(
-                this.AUTOEQ_LAST_HEADPHONE_KEY,
-                JSON.stringify({
-                    entry,
-                    measurementData,
-                    savedAt: Date.now(),
-                })
-            );
-        } catch (e) {
-            console.warn('[AutoEQ] Failed to save last headphone:', e);
-        }
-    },
-
-    /**
-     * Retrieve the last selected headphone entry + cached measurement data
-     * @returns {{entry: object, measurementData: Array}|null}
-     */
-    getLastHeadphone() {
-        try {
-            const stored = localStorage.getItem(this.AUTOEQ_LAST_HEADPHONE_KEY);
-            if (!stored) return null;
-            const parsed = JSON.parse(stored);
-            if (parsed && parsed.entry && parsed.measurementData) return parsed;
-            return null;
-        } catch {
-            return null;
-        }
-    },
-
-    clearLastHeadphone() {
-        localStorage.removeItem(this.AUTOEQ_LAST_HEADPHONE_KEY);
-    },
-
-    // --- Graphic EQ (16-band) separate storage ---
-    GEQ_ENABLED_KEY: 'graphic-eq-enabled',
-    GEQ_GAINS_KEY: 'graphic-eq-gains',
-    GEQ_PREAMP_KEY: 'graphic-eq-preamp',
-
-    isGraphicEqEnabled() {
-        try {
-            return localStorage.getItem(this.GEQ_ENABLED_KEY) === 'true';
-        } catch {
-            return false;
-        }
-    },
-
-    setGraphicEqEnabled(enabled) {
-        try {
-            localStorage.setItem(this.GEQ_ENABLED_KEY, String(!!enabled));
-        } catch {
-            /* ignore */
-        }
-    },
-
-    getGraphicEqGains() {
-        try {
-            const stored = localStorage.getItem(this.GEQ_GAINS_KEY);
-            if (stored) {
-                const parsed = JSON.parse(stored);
-                if (Array.isArray(parsed) && parsed.length === 16) {
-                    return parsed.map((v) => (Number.isFinite(v) ? v : 0));
-                }
-            }
-        } catch {
-            /* ignore */
-        }
-        return new Array(16).fill(0);
-    },
-
-    setGraphicEqGains(gains) {
-        try {
-            localStorage.setItem(this.GEQ_GAINS_KEY, JSON.stringify(gains));
-        } catch {
-            /* ignore */
-        }
-    },
-
-    getGraphicEqPreamp() {
-        try {
-            const val = localStorage.getItem(this.GEQ_PREAMP_KEY);
-            if (val !== null) {
-                const num = parseFloat(val);
-                return Number.isFinite(num) ? num : 0;
-            }
-            return 0;
-        } catch {
-            return 0;
-        }
-    },
-
-    setGraphicEqPreamp(db) {
-        try {
-            localStorage.setItem(this.GEQ_PREAMP_KEY, String(db));
-        } catch {
-            /* ignore */
-        }
-    },
 };
 
 export const monoAudioSettings = {
@@ -1827,8 +1473,7 @@ export const audioEffectsSettings = {
     },
 
     setSpeed(speed) {
-        const parsed = parseFloat(speed);
-        const validSpeed = Math.max(0.01, Math.min(100, isNaN(parsed) ? 1.0 : parsed));
+        const validSpeed = Math.max(0.01, Math.min(100, parseFloat(speed) || 1.0));
         localStorage.setItem(this.SPEED_KEY, validSpeed.toString());
     },
 
@@ -2205,20 +1850,6 @@ export const homePageSettings = {
     setShuffleEditorsPicks(enabled) {
         localStorage.setItem(this.SHUFFLE_EDITORS_PICKS_KEY, enabled ? 'true' : 'false');
     },
-
-    EDITORS_PICKS_SOURCE_KEY: 'home-editors-picks-source',
-
-    getEditorsPicksSource() {
-        try {
-            return localStorage.getItem(this.EDITORS_PICKS_SOURCE_KEY) || 'current';
-        } catch {
-            return 'current';
-        }
-    },
-
-    setEditorsPicksSource(source) {
-        localStorage.setItem(this.EDITORS_PICKS_SOURCE_KEY, source);
-    },
 };
 
 export const radioSettings = {
@@ -2531,8 +2162,7 @@ export const fontSettings = {
     },
 
     setFontSize(size) {
-        const parsed = parseInt(size, 10);
-        const validSize = Math.max(50, Math.min(200, isNaN(parsed) ? 100 : parsed));
+        const validSize = Math.max(50, Math.min(200, parseInt(size, 10) || 100));
         localStorage.setItem(this.FONT_SIZE_KEY, validSize.toString());
         this.applyFontSize();
         return validSize;
@@ -2800,18 +2430,18 @@ export const fontSettings = {
         document.documentElement.style.setProperty('--font-family', "'SF Pro Display', sans-serif");
     },
 
-    async applyFont() {
+    applyFont() {
         const config = this.getConfig();
 
         switch (config.type) {
             case 'google':
-                await this.loadGoogleFont(config.family);
+                this.loadGoogleFont(config.family);
                 break;
             case 'url':
-                await this.loadFontFromUrl(config.url, config.family);
+                this.loadFontFromUrl(config.url, config.family);
                 break;
             case 'uploaded':
-                await this.loadUploadedFont(config.fontId);
+                this.loadUploadedFont(config.fontId);
                 break;
             case 'preset':
             default:
@@ -2997,7 +2627,7 @@ export const contentBlockingSettings = {
     blockArtist(artist) {
         if (!artist || !artist.id) return;
         const blocked = this.getBlockedArtists();
-        if (!blocked.some((a) => String(a.id) === String(artist.id))) {
+        if (!blocked.some((a) => a.id === artist.id)) {
             blocked.push({
                 id: artist.id,
                 name: artist.name || 'Unknown Artist',
