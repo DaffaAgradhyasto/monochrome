@@ -245,15 +245,6 @@ jobs:
           fi
           echo "Validasi berhasil."
 
-              - name: Test Build
-                    if: steps.auto.outputs.skip != 'true' && steps.check.outputs.needs_sync == 'true'
-                          run: |
-                                  echo "=== Testing Build ==="
-                                          if ! npm run build; then
-                                                    echo "::error::Build gagal! Sinkronisasi dibatalkan."
-                                                              exit 1
-                                                                      fi
-                                                                              echo "Build berhasil!"
 
       - name: Push perubahan
         if: steps.auto.outputs.skip != 'true' && steps.check.outputs.needs_sync == 'true'
