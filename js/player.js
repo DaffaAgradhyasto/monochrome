@@ -219,7 +219,7 @@ export class Player {
 
     setVolume(value) {
         this.userVolume = Math.max(0, Math.min(1, value));
-        localStorage.setItem('volume', this.userVolume);
+        localStorage.setItem('volume', String(this.userVolume));
         this.applyReplayGain();
     }
 
@@ -864,7 +864,7 @@ export class Player {
         }
 
         if (inactiveElement) {
-            inactiveElement.pause();
+            if (typeof inactiveElement.pause === 'function') inactiveElement.pause();
             inactiveElement.src = '';
             inactiveElement.removeAttribute('src');
             inactiveElement.style.display = 'none';
