@@ -5,7 +5,10 @@ import path from 'path';
 import uploadPlugin from './vite-plugin-upload.js';
 import blobAssetPlugin from './vite-plugin-blob.js';
 import svgUse from './vite-plugin-svg-use.js';
+// import purgecss from 'vite-plugin-purgecss';
+import purgecss from 'vite-plugin-purgecss';
 import { execSync } from 'child_process';
+import { playwright } from '@vitest/browser-playwright';
 
 function getGitCommitHash() {
     try {
@@ -15,13 +18,23 @@ function getGitCommitHash() {
     }
 }
 
-export default defineConfig(({ mode }) => {
+export default defineConfig((_options) => {
     const commitHash = getGitCommitHash();
 
     return {
+        test: {
+            // https://vitest.dev/guide/browser/
+            browser: {
+                enabled: true,
+                provider: playwright(),
+                headless: !!process.env.HEADLESS,
+                instances: [{ browser: 'chromium' }],
+            },
+        },
         base: './',
         define: {
             __COMMIT_HASH__: JSON.stringify(commitHash),
+            __VITEST__: !!process.env.VITEST,
         },
         worker: {
             format: 'es',
@@ -60,6 +73,23 @@ export default defineConfig(({ mode }) => {
     },
         },
         plugins: [
+            purgecss({
+                variables: false, // DO NOT REMOVE UNUSED VARIABLES (breaks web components like am-lyrics)
+                safelist: {
+                    standard: [
+                        /^am-lyrics/,
+                        /^lyplus-/,
+                        'sidepanel',
+                        'side-panel',
+                        'active',
+                        'show',
+                        /^data-/,
+                        /^modal-/,
+                    ],
+                    deep: [/^am-lyrics/],
+                    greedy: [/^lyplus-/, /sidepanel/, /side-panel/],
+                },
+            }),
             authGatePlugin(),
             uploadPlugin(),
             blobAssetPlugin(),

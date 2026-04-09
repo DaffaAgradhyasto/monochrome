@@ -113,6 +113,15 @@ class AudioContextManager {
         // Callbacks for audio graph changes (for visualizers like Butterchurn)
         this._graphChangeCallbacks = [];
 
+        // --- Graphic EQ (16-band, separate chain) ---
+        this.geqFilters = [];
+        this.geqPreampNode = null;
+        this.geqOutputNode = null;
+        this.isGraphicEQEnabled = equalizerSettings.isGraphicEqEnabled();
+        this.geqFrequencies = [25, 40, 63, 100, 160, 250, 400, 630, 1000, 1600, 2500, 4000, 6300, 10000, 16000, 20000];
+        this.geqGains = equalizerSettings.getGraphicEqGains();
+        this.geqPreamp = equalizerSettings.getGraphicEqPreamp();
+
         // Load saved settings
         this._loadSettings();
     }
@@ -239,9 +248,10 @@ class AudioContextManager {
         // Create biquad filters for each frequency band
         this.filters = this.frequencies.map((freq, index) => {
             const filter = this.audioContext.createBiquadFilter();
-            filter.type = 'peaking';
+            filter.type = (this.currentTypes && this.currentTypes[index]) || 'peaking';
             filter.frequency.value = freq;
-            filter.Q.value = this._calculateQ(index);
+            filter.Q.value =
+                this.currentQs && this.currentQs[index] > 0 ? this.currentQs[index] : this._calculateQ(index);
             filter.gain.value = this.currentGains[index] || 0;
             return filter;
         });
@@ -307,17 +317,12 @@ class AudioContextManager {
 
         try {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
-            const highResOptions = { sampleRate: 192000, latencyHint: 'playback' };
 
             try {
-                this.audioContext = new AudioContext(highResOptions);
-                console.log(`[AudioContext] Created with high-res settings: ${this.audioContext.sampleRate}Hz`);
-            } catch (e) {
-                try {
-                    this.audioContext = new AudioContext({ latencyHint: 'playback' });
-                } catch (e2) {
-                    this.audioContext = new AudioContext();
-                }
+                this.audioContext = new AudioContext({ latencyHint: 'playback' });
+                console.log(`[AudioContext] Created: ${this.audioContext.sampleRate}Hz`);
+            } catch {
+                this.audioContext = new AudioContext();
             }
 
             if (!this.sources.has(audioElement)) {
@@ -330,6 +335,7 @@ class AudioContextManager {
             this.analyser.smoothingTimeConstant = 0.7;
 
             this._createEQ();
+            this._createGraphicEQ();
 
             this.outputNode = this.audioContext.createGain();
             this.outputNode.gain.value = 1;
@@ -340,6 +346,21 @@ class AudioContextManager {
             this.monoMergerNode = this.audioContext.createChannelMerger(2);
 
             this._connectGraph();
+
+            // Auto-recover from unexpected suspensions (e.g. background throttling)
+            this.audioContext.addEventListener('statechange', () => {
+                if (this.audioContext.state === 'interrupted' || this.audioContext.state === 'suspended') {
+                    console.log(`[AudioContext] State changed to ${this.audioContext.state}, attempting resume`);
+                    // Use a short delay to let the system settle before resuming
+                    setTimeout(() => {
+                        if (this.audioContext && this.audioContext.state !== 'running' && this.source) {
+                            this.audioContext.resume().catch((e) => {
+                                console.warn('[AudioContext] Auto-resume failed:', e);
+                            });
+                        }
+                    }, 100);
+                }
+            });
 
             this.isInitialized = true;
         } catch (e) {
@@ -358,7 +379,9 @@ class AudioContextManager {
             if (this.source) {
                 try {
                     this.source.disconnect();
-                } catch (e) {}
+                } catch {
+                    // node may already be disconnected
+                }
             }
 
             this.audio = audioElement;
@@ -377,56 +400,76 @@ class AudioContextManager {
     }
 
     /**
-     * Connect the audio graph based on EQ and mono audio state
+     * Connect the audio graph based on EQ and mono audio state.
+     * Uses connect-before-disconnect ordering to avoid audio dropouts:
+     * the new chain is wired up first, then the old connections are torn down.
      */
     _connectGraph() {
         if (!this.isInitialized || !this.source || !this.audioContext) return;
 
-        try {
-            // Disconnect everything first
-            try {
-                this.source.disconnect();
-            } catch (e) {}
-            this.outputNode.disconnect();
-            if (this.volumeNode) {
-                this.volumeNode.disconnect();
-            }
-            this.analyser.disconnect();
+        // Ensure graphic EQ nodes exist
+        if (this.geqFilters.length === 0 && this.isGraphicEQEnabled) {
+            this._createGraphicEQ();
+        }
 
-            if (this.monoMergerNode) {
-                try {
-                    this.monoMergerNode.disconnect();
-                } catch {
-                    // Ignore if not connected
+        // Helper: connect a chain segment from lastNode through graphic EQ (if enabled) to analyser -> volume -> dest
+        const connectTail = (lastNode) => {
+            if (this.isGraphicEQEnabled && this.geqFilters.length > 0) {
+                lastNode.connect(this.geqPreampNode);
+                this.geqPreampNode.connect(this.geqFilters[0]);
+                for (let i = 0; i < this.geqFilters.length - 1; i++) {
+                    this.geqFilters[i].connect(this.geqFilters[i + 1]);
                 }
+                this.geqFilters[this.geqFilters.length - 1].connect(this.geqOutputNode);
+                this.geqOutputNode.connect(this.analyser);
+            } else {
+                lastNode.connect(this.analyser);
+            }
+            this.analyser.connect(this.volumeNode);
+            this.volumeNode.connect(this.audioContext.destination);
+        };
+
+        try {
+            // Ensure mono gain node exists if needed
+            if (this.isMonoAudioEnabled && this.monoMergerNode && !this.monoGainNode) {
+                this.monoGainNode = this.audioContext.createGain();
+                this.monoGainNode.gain.value = 0.5;
             }
 
+            // --- 1. Disconnect all existing connections ---
+            const safeDisconnect = (node) => {
+                try {
+                    node?.disconnect();
+                } catch {
+                    /* */
+                }
+            };
+            safeDisconnect(this.source);
+            safeDisconnect(this.monoGainNode);
+            safeDisconnect(this.monoMergerNode);
+            safeDisconnect(this.preampNode);
+            this.filters.forEach(safeDisconnect);
+            safeDisconnect(this.outputNode);
+            safeDisconnect(this.geqPreampNode);
+            this.geqFilters.forEach(safeDisconnect);
+            safeDisconnect(this.geqOutputNode);
+            safeDisconnect(this.analyser);
+            safeDisconnect(this.volumeNode);
+
+            // --- 2. Reconnect the graph ---
             let lastNode = this.source;
 
-            // Apply mono audio if enabled
             if (this.isMonoAudioEnabled && this.monoMergerNode) {
-                // Create a gain node to mix channels before the merger
-                const monoGain = this.audioContext.createGain();
-                monoGain.gain.value = 0.5; // Reduce volume to prevent clipping when mixing
-
-                // Connect source to mono gain
-                this.source.connect(monoGain);
-
-                // Connect mono gain to both inputs of the merger
-                monoGain.connect(this.monoMergerNode, 0, 0);
-                monoGain.connect(this.monoMergerNode, 0, 1);
-
+                this.source.connect(this.monoGainNode);
+                this.monoGainNode.connect(this.monoMergerNode, 0, 0);
+                this.monoGainNode.connect(this.monoMergerNode, 0, 1);
                 lastNode = this.monoMergerNode;
-                console.log('[AudioContext] Mono audio enabled');
             }
 
             if (this.isEQEnabled && this.filters.length > 0) {
-                // EQ enabled: lastNode -> preamp -> EQ filters -> output -> analyser -> volume -> destination
-                // Connect filter chain
                 for (let i = 0; i < this.filters.length - 1; i++) {
                     this.filters[i].connect(this.filters[i + 1]);
                 }
-                // Connect preamp to first filter
                 if (this.preampNode) {
                     lastNode.connect(this.preampNode);
                     this.preampNode.connect(this.filters[0]);
@@ -434,22 +477,15 @@ class AudioContextManager {
                     lastNode.connect(this.filters[0]);
                 }
                 this.filters[this.filters.length - 1].connect(this.outputNode);
-                this.outputNode.connect(this.analyser);
-                this.analyser.connect(this.volumeNode);
-                this.volumeNode.connect(this.audioContext.destination);
-                console.log('[AudioContext] EQ connected');
+                connectTail(this.outputNode);
             } else {
-                // EQ disabled: lastNode -> analyser -> volume -> destination
-                lastNode.connect(this.analyser);
-                this.analyser.connect(this.volumeNode);
-                this.volumeNode.connect(this.audioContext.destination);
+                connectTail(lastNode);
             }
 
             // Notify visualizers that graph has been reconnected
             this._notifyGraphChange();
         } catch (e) {
             console.warn('[AudioContext] Failed to connect graph:', e);
-            // Fallback: direct connection
             try {
                 this.source.connect(this.audioContext.destination);
             } catch {
@@ -574,6 +610,57 @@ class AudioContextManager {
     }
 
     /**
+     * Calculate biquad filter magnitude response in dB at a given frequency
+     */
+    _biquadResponseDb(f, band, sr) {
+        if (!band.enabled || !band.type) return 0;
+        const w = (2 * Math.PI * band.freq) / sr;
+        const p = (2 * Math.PI * f) / sr;
+        const s = Math.sin(w) / (2 * band.q);
+        const A = Math.pow(10, band.gain / 40);
+        const c = Math.cos(w);
+        let b0, b1, b2, a0, a1, a2;
+        const t = band.type[0];
+        if (t === 'p') {
+            b0 = 1 + s * A;
+            b1 = -2 * c;
+            b2 = 1 - s * A;
+            a0 = 1 + s / A;
+            a1 = -2 * c;
+            a2 = 1 - s / A;
+        } else if (t === 'l') {
+            const sq = 2 * Math.sqrt(A) * s;
+            b0 = A * (A + 1 - (A - 1) * c + sq);
+            b1 = 2 * A * (A - 1 - (A + 1) * c);
+            b2 = A * (A + 1 - (A - 1) * c - sq);
+            a0 = A + 1 + (A - 1) * c + sq;
+            a1 = -2 * (A - 1 + (A + 1) * c);
+            a2 = A + 1 + (A - 1) * c - sq;
+        } else if (t === 'h') {
+            const sq = 2 * Math.sqrt(A) * s;
+            b0 = A * (A + 1 + (A - 1) * c + sq);
+            b1 = -2 * A * (A - 1 + (A + 1) * c);
+            b2 = A * (A + 1 + (A - 1) * c - sq);
+            a0 = A + 1 - (A - 1) * c + sq;
+            a1 = 2 * (A - 1 - (A + 1) * c);
+            a2 = A + 1 - (A - 1) * c - sq;
+        } else {
+            return 0;
+        }
+        const _a0 = 1 / a0;
+        const b0n = b0 * _a0,
+            b1n = b1 * _a0,
+            b2n = b2 * _a0;
+        const a1n = a1 * _a0,
+            a2n = a2 * _a0;
+        const cp = Math.cos(p),
+            c2p = Math.cos(2 * p);
+        const n = b0n * b0n + b1n * b1n + b2n * b2n + 2 * (b0n * b1n + b1n * b2n) * cp + 2 * b0n * b2n * c2p;
+        const d = 1 + a1n * a1n + a2n * a2n + 2 * (a1n + a1n * a2n) * cp + 2 * a2n * c2p;
+        return 10 * Math.log10(n / d);
+    }
+
+    /**
      * Clamp gain to valid range
      */
     _clampGain(gainDb) {
@@ -665,8 +752,11 @@ class AudioContextManager {
         this.isEQEnabled = equalizerSettings.isEnabled();
         this.bandCount = equalizerSettings.getBandCount();
         this.freqRange = equalizerSettings.getFreqRange();
-        this.frequencies = generateFrequencies(this.bandCount, this.freqRange.min, this.freqRange.max);
+        const customFreqs = equalizerSettings.getCustomFrequencies(this.bandCount);
+        this.frequencies = customFreqs || generateFrequencies(this.bandCount, this.freqRange.min, this.freqRange.max);
         this.currentGains = equalizerSettings.getGains(this.bandCount);
+        this.currentTypes = equalizerSettings.getBandTypes(this.bandCount);
+        this.currentQs = equalizerSettings.getBandQs(this.bandCount);
         this.isMonoAudioEnabled = monoAudioSettings.isEnabled();
         this.preamp = equalizerSettings.getPreamp();
     }
@@ -697,7 +787,100 @@ class AudioContextManager {
     }
 
     /**
-     * Called when the app enters the background (screen lock, app switch).
+     * Apply AutoEQ-generated bands to the equalizer
+     * Unlike regular presets, AutoEQ bands have specific frequencies, gains, and Q values
+     * @param {Array<{id: number, type: string, freq: number, gain: number, q: number, enabled: boolean}>} bands
+     * @returns {string} Exported text representation of the applied EQ
+     */
+    applyAutoEQBands(bands, skipPreamp = false) {
+        if (!bands || bands.length === 0) return '';
+
+        const enabledBands = bands.filter((b) => b.enabled);
+        const count = Math.max(equalizerSettings.MIN_BANDS, Math.min(equalizerSettings.MAX_BANDS, enabledBands.length));
+
+        // Calculate preamp: negative of cumulative peak gain across all bands to prevent clipping
+        let cumulativePeak = 0;
+        if (!skipPreamp) {
+            const sr = this.audioContext?.sampleRate ?? 48000;
+            // Sweep log-spaced frequencies (24 points/octave from 20-20kHz) to catch narrow peaks
+            for (let f = 20; f <= 20000; f *= Math.pow(2, 1 / 24)) {
+                let sum = 0;
+                for (const b of enabledBands) {
+                    sum += this._biquadResponseDb(f, b, sr);
+                }
+                if (sum > cumulativePeak) cumulativePeak = sum;
+            }
+        }
+        const preamp = skipPreamp
+            ? equalizerSettings.getPreamp()
+            : cumulativePeak > 0
+              ? -Math.round(cumulativePeak * 10) / 10
+              : 0;
+
+        // Sort bands by frequency so index order is deterministic
+        const sortedBands = [...enabledBands].sort((a, b) => a.freq - b.freq);
+
+        // Build normalized band descriptor arrays
+        const newFrequencies = sortedBands
+            .slice(0, count)
+            .map((b) => Math.round(Math.min(b.freq, (this.audioContext?.sampleRate ?? 48000) / 2 - 1)));
+        const newTypes = sortedBands.slice(0, count).map((b) => b.type || 'peaking');
+        const newQs = sortedBands.slice(0, count).map((b) => b.q);
+        const newGains = sortedBands.slice(0, count).map((b) => this._clampGain(b.gain));
+
+        // Update band count via class setter to trigger equalizer-band-count-changed event
+        if (count !== this.bandCount) {
+            this.setBandCount(count);
+        }
+
+        // Override frequencies, types, and Qs with band-specific values
+        this.frequencies = newFrequencies;
+        this.currentTypes = newTypes;
+        this.currentQs = newQs;
+        this.currentGains = newGains;
+
+        if (this.isInitialized && this.audioContext) {
+            // If filter count matches, update params in-place (no graph rebuild)
+            if (this.filters.length === count) {
+                const now = this.audioContext.currentTime;
+                this.filters.forEach((filter, i) => {
+                    filter.type = newTypes[i] || 'peaking';
+                    filter.frequency.setTargetAtTime(newFrequencies[i], now, 0.005);
+                    filter.gain.setTargetAtTime(newGains[i], now, 0.005);
+                    filter.Q.setTargetAtTime(newQs[i] > 0 ? newQs[i] : this._calculateQ(i), now, 0.005);
+                });
+            } else {
+                // Band count changed — must rebuild
+                this._destroyEQ();
+                this._createEQ();
+                this._connectGraph();
+            }
+        }
+
+        // Apply preamp (skip if caller manages preamp externally)
+        if (!skipPreamp) {
+            this.setPreamp(preamp);
+        }
+
+        // Persist normalized band descriptors to settings store
+        equalizerSettings.setCustomFrequencies(this.frequencies);
+        equalizerSettings.setGains(this.currentGains);
+        equalizerSettings.setBandTypes(this.currentTypes);
+        equalizerSettings.setBandQs(this.currentQs);
+
+        // Generate export text using the actual applied preamp value
+        const lines = [`Preamp: ${this.preamp.toFixed(1)} dB`];
+        sortedBands.forEach((band, index) => {
+            if (index >= count) return;
+            const filterType = band.type === 'lowshelf' ? 'LS' : band.type === 'highshelf' ? 'HS' : 'PK';
+            lines.push(
+                `Filter ${index + 1}: ON ${filterType} Fc ${newFrequencies[index]} Hz Gain ${newGains[index].toFixed(1)} dB Q ${newQs[index].toFixed(2)}`
+            );
+        });
+
+        return lines.join('\n');
+    }
+
     /**
      * Export equalizer settings to text format
      * @returns {string} Exported settings in text format
@@ -709,8 +892,13 @@ class AudioContextManager {
 
         this.frequencies.forEach((freq, index) => {
             const gain = this.currentGains[index] || 0;
+            const type = (this.currentTypes && this.currentTypes[index]) || 'peaking';
+            const filterType = type === 'lowshelf' ? 'LS' : type === 'highshelf' ? 'HS' : 'PK';
+            const q = this.currentQs && this.currentQs[index] > 0 ? this.currentQs[index] : this._calculateQ(index);
             const filterNum = index + 1;
-            lines.push(`Filter ${filterNum}: ON PK Fc ${freq} Hz Gain ${gain.toFixed(1)} dB Q 0.71`);
+            lines.push(
+                `Filter ${filterNum}: ON ${filterType} Fc ${freq} Hz Gain ${gain.toFixed(1)} dB Q ${q.toFixed(2)}`
+            );
         });
 
         return lines.join('\n');
@@ -760,29 +948,138 @@ class AudioContextManager {
             this.setPreamp(preamp);
 
             // If different number of bands, adjust
-            if (filters.length !== this.bandCount) {
-                const newCount = Math.max(
-                    equalizerSettings.MIN_BANDS,
-                    Math.min(equalizerSettings.MAX_BANDS, filters.length)
-                );
+            const newCount = Math.max(
+                equalizerSettings.MIN_BANDS,
+                Math.min(equalizerSettings.MAX_BANDS, filters.length)
+            );
+            if (newCount !== this.bandCount) {
                 this.setBandCount(newCount);
             }
 
-            // Extract gains from filters
-            const gains = filters.slice(0, this.bandCount).map((f) => f.gain);
-            this.setAllGains(gains);
+            // Apply per-band frequencies, types, Qs, and gains from import
+            const sliced = filters.slice(0, this.bandCount);
+            const typeMap = {
+                PK: 'peaking',
+                LS: 'lowshelf',
+                LSC: 'lowshelf',
+                LSF: 'lowshelf',
+                HS: 'highshelf',
+                HSC: 'highshelf',
+                HSF: 'highshelf',
+            };
+            this.frequencies = sliced.map((f) => f.freq);
+            this.currentTypes = sliced.map((f) => typeMap[f.type] || 'peaking');
+            this.currentQs = sliced.map((f) => f.q);
+            this.currentGains = sliced.map((f) => this._clampGain(f.gain));
 
-            // Store filter frequencies if different
-            const newFreqs = filters.slice(0, this.bandCount).map((f) => f.freq);
-            if (JSON.stringify(newFreqs) !== JSON.stringify(this.frequencies)) {
-                equalizerSettings.setFreqRange(newFreqs[0], newFreqs[newFreqs.length - 1]);
+            // Rebuild EQ chain to apply new frequencies, types, and Qs
+            if (this.isInitialized && this.audioContext) {
+                this._destroyEQ();
+                this._createEQ();
+                this._connectGraph();
             }
+
+            // Persist all band settings
+            equalizerSettings.setGains(this.currentGains);
+            equalizerSettings.setBandTypes(this.currentTypes);
+            equalizerSettings.setBandQs(this.currentQs);
 
             return true;
         } catch (e) {
             console.warn('[AudioContext] Failed to import EQ settings:', e);
             return false;
         }
+    }
+
+    // ========================================
+    // Graphic EQ (16-band, independent chain)
+    // ========================================
+
+    _createGraphicEQ() {
+        if (!this.audioContext) return;
+        this.geqPreampNode = this.audioContext.createGain();
+        const gainValue = Math.pow(10, (this.geqPreamp || 0) / 20);
+        this.geqPreampNode.gain.value = gainValue;
+
+        this.geqOutputNode = this.audioContext.createGain();
+        this.geqOutputNode.gain.value = 1;
+
+        this.geqFilters = this.geqFrequencies.map((freq, i) => {
+            const filter = this.audioContext.createBiquadFilter();
+            filter.type = 'peaking';
+            filter.frequency.value = freq;
+            filter.Q.value = 2.5; // constant Q for 16-band
+            filter.gain.value = this.geqGains[i] || 0;
+            return filter;
+        });
+    }
+
+    _destroyGraphicEQ() {
+        this.geqFilters.forEach((f) => {
+            try {
+                f.disconnect();
+            } catch {
+                /* */
+            }
+        });
+        this.geqFilters = [];
+        if (this.geqPreampNode) {
+            try {
+                this.geqPreampNode.disconnect();
+            } catch {
+                /* */
+            }
+            this.geqPreampNode = null;
+        }
+        if (this.geqOutputNode) {
+            try {
+                this.geqOutputNode.disconnect();
+            } catch {
+                /* */
+            }
+            this.geqOutputNode = null;
+        }
+    }
+
+    toggleGraphicEQ(enabled) {
+        this.isGraphicEQEnabled = enabled;
+        equalizerSettings.setGraphicEqEnabled(enabled);
+        if (this.isInitialized) {
+            this._connectGraph();
+        }
+    }
+
+    setGraphicEqBandGain(bandIndex, gainDb) {
+        if (bandIndex < 0 || bandIndex >= 16) return;
+        this.geqGains[bandIndex] = Math.max(-30, Math.min(30, gainDb));
+        if (this.geqFilters[bandIndex] && this.audioContext) {
+            const now = this.audioContext.currentTime;
+            this.geqFilters[bandIndex].gain.setTargetAtTime(this.geqGains[bandIndex], now, 0.01);
+        }
+        equalizerSettings.setGraphicEqGains([...this.geqGains]);
+    }
+
+    setGraphicEqAllGains(gains) {
+        if (!Array.isArray(gains)) return;
+        const now = this.audioContext?.currentTime || 0;
+        gains.forEach((g, i) => {
+            if (i >= 16) return;
+            this.geqGains[i] = Math.max(-30, Math.min(30, g));
+            if (this.geqFilters[i]) {
+                this.geqFilters[i].gain.setTargetAtTime(this.geqGains[i], now, 0.01);
+            }
+        });
+        equalizerSettings.setGraphicEqGains([...this.geqGains]);
+    }
+
+    setGraphicEqPreamp(db) {
+        this.geqPreamp = Math.max(-20, Math.min(20, parseFloat(db) || 0));
+        if (this.geqPreampNode && this.audioContext) {
+            const gainValue = Math.pow(10, this.geqPreamp / 20);
+            const now = this.audioContext.currentTime;
+            this.geqPreampNode.gain.setTargetAtTime(gainValue, now, 0.01);
+        }
+        equalizerSettings.setGraphicEqPreamp(this.geqPreamp);
     }
 }
 
