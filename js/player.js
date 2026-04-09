@@ -864,7 +864,7 @@ export class Player {
         }
 
         if (inactiveElement) {
-            if (typeof inactiveElement.pause === 'function') inif (typeof activeElement.pause === 'function') activeElement.pause();
+            if (typeof inactiveElement.pause === 'function') inactiveElement.pause();
             inactiveElement.src = '';
             inactiveElement.removeAttribute('src');
             inactiveElement.style.display = 'none';
