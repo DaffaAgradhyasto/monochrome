@@ -1252,7 +1252,7 @@ export const equalizerSettings = {
                     }
                     // If different band count, try to interpolate or return flat
                     if (gains.length > 0) {
-                        return this.interpolateGains(gains, count);
+                        return this._interpolateGains(gains, count);
                     }
                 }
             }
@@ -1276,7 +1276,7 @@ export const equalizerSettings = {
     /**
      * Interpolate gains array to match target band count
      */
-    interpolateGains(sourceGains, targetCount) {
+    _interpolateGains(sourceGains, targetCount) {
         if (sourceGains.length === targetCount) {
             return [...sourceGains];
         }
@@ -1420,101 +1420,6 @@ export const monoAudioSettings = {
 
     setEnabled(enabled) {
         localStorage.setItem(this.STORAGE_KEY, enabled ? 'true' : 'false');
-    },
-};
-
-export const binauralDspSettings = {
-    STORAGE_KEY: 'binaural-dsp',
-
-    _getAll() {
-        try {
-            return JSON.parse(localStorage.getItem(this.STORAGE_KEY)) || {};
-        } catch {
-            return {};
-        }
-    },
-
-    _setAll(obj) {
-        try {
-            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(obj));
-        } catch {
-            // QuotaExceededError - storage full
-        }
-    },
-
-    isEnabled() {
-        return this._getAll().enabled === true;
-    },
-
-    setEnabled(enabled) {
-        const all = this._getAll();
-        all.enabled = !!enabled;
-        this._setAll(all);
-    },
-
-    getCrossfeedEnabled() {
-        const val = this._getAll().crossfeedEnabled;
-        return val === undefined ? true : val;
-    },
-
-    setCrossfeedEnabled(enabled) {
-        const all = this._getAll();
-        all.crossfeedEnabled = !!enabled;
-        this._setAll(all);
-    },
-
-    getCrossfeedLevel() {
-        return this._getAll().crossfeedLevel || 'medium';
-    },
-
-    setCrossfeedLevel(level) {
-        const all = this._getAll();
-        all.crossfeedLevel = level;
-        this._setAll(all);
-    },
-
-    getHrtfPreset() {
-        return this._getAll().hrtfPreset || 'studio';
-    },
-
-    setHrtfPreset(preset) {
-        const all = this._getAll();
-        all.hrtfPreset = preset;
-        this._setAll(all);
-    },
-
-    getWideningEnabled() {
-        const val = this._getAll().wideningEnabled;
-        return val === undefined ? true : val;
-    },
-
-    setWideningEnabled(enabled) {
-        const all = this._getAll();
-        all.wideningEnabled = !!enabled;
-        this._setAll(all);
-    },
-
-    getWideningAmount() {
-        const val = this._getAll().wideningAmount;
-        return val === undefined ? 1.0 : val;
-    },
-
-    setWideningAmount(amount) {
-        const all = this._getAll();
-        const n = Number(amount);
-        all.wideningAmount = Number.isFinite(n) ? Math.max(0, Math.min(2, n)) : 1.0;
-        this._setAll(all);
-    },
-
-    getAutoEnableForSpatial() {
-        const val = this._getAll().autoEnableForSpatial;
-        return val === undefined ? true : val;
-    },
-
-    setAutoEnableForSpatial(enabled) {
-        const all = this._getAll();
-        all.autoEnableForSpatial = !!enabled;
-        this._setAll(all);
     },
 };
 
