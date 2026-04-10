@@ -1,0 +1,25 @@
+name: Restore files from clean commit 235bfcc
+
+on:
+  workflow_dispatch:
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Restore files from commit 235bfcc
+        run: |
+          git checkout 235bfcc74cafbcd25fcc151b132ee08db3d22a21 -- js/settings.js js/ui.js package.json package-lock.json
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add js/settings.js js/ui.js package.json package-lock.json
+          git diff --staged --quiet || git commit -m "fix: restore js/settings.js, js/ui.js, package.json, package-lock.json from working commit 235bfcc"
+          git push
