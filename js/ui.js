@@ -3016,13 +3016,22 @@ export class UIRenderer {
     }
 
     async getSeeds() {
+        try {
+            const { smartRecommendations } = await import('./smart-recommendations.js');
+            const { autoplaySettings } = await import('./storage.js');
+            if (autoplaySettings.isSmartRecsEnabled()) {
+                const smartSeeds = await smartRecommendations.getSmartSeeds(50);
+                if (smartSeeds.length > 0) return smartSeeds;
+            }
+        } catch (e) {
+            console.warn('Smart seeds failed, using basic seeds:', e);
+        }
+
         const history = await db.getHistory();
         const favorites = await db.getFavorites('track');
         const playlists = await db.getPlaylists(true);
         const playlistTracks = playlists.flatMap((p) => p.tracks || []);
 
-        // Prioritize: Playlists > Favorites > History
-        // Take random samples from each to form seeds
         const shuffle = (arr) => [...arr].sort(() => Math.random() - 0.5);
 
         const combined = [
@@ -3056,7 +3065,7 @@ export class UIRenderer {
             if (forceRefresh || songsContainer.children.length === 0) {
                 songsContainer.innerHTML = this.createSkeletonTracks(10, true);
             } else if (!songsContainer.querySelector('.skeleton')) {
-                return; // Already loaded
+                return;
             }
 
             try {
@@ -3073,10 +3082,21 @@ export class UIRenderer {
                     ...history.map((t) => t.id),
                 ]);
 
-                const recommendedTracks = await this.api.getRecommendedTracksForPlaylist(seeds, 20, {
+                let recommendedTracks = await this.api.getRecommendedTracksForPlaylist(seeds, 20, {
                     skipCache: forceRefresh,
                     knownTrackIds: knownTrackIds,
                 });
+
+                try {
+                    const { smartRecommendations } = await import('./smart-recommendations.js');
+                    const { autoplaySettings } = await import('./storage.js');
+                    if (autoplaySettings.isSmartRecsEnabled()) {
+                        recommendedTracks = smartRecommendations.filterRecommendations(recommendedTracks);
+                        recommendedTracks = smartRecommendations.rankRecommendations(recommendedTracks);
+                    }
+                } catch (e) {
+                    console.warn('Smart filtering failed for home songs:', e);
+                }
 
                 const filteredTracks = await this.filterUserContent(recommendedTracks, 'track');
                 this.lastRecommendedTracks = filteredTracks;
@@ -6363,6 +6383,7 @@ export class UIRenderer {
 
             playBtn.onclick = () => {
                 this.player.setQueue([track], 0);
+                this.player.enableAutoplay();
                 this.player.playTrackFromQueue();
             };
 
