@@ -26,6 +26,7 @@ import { db } from './db.js';
 
 import { SVG_CLOCK, SVG_ATMOS } from './icons.js';
 import { UIRenderer } from './ui.js';
+import { MediaSession } from '@capgo/capacitor-media-session';
 
 export class Player {
     static #instance = null;
@@ -427,10 +428,8 @@ export class Player {
     }
 
     async setupMediaSession() {
-        if (!('mediaSession' in navigator)) return;
-
         const setHandlers = async () => {
-            navigator.mediaSession.setActionHandler('play', async () => {
+            await MediaSession.setActionHandler({ action: 'play' }, async () => {
                 const el = this.activeElement;
                 // Initialize and resume audio context first (required for iOS lock screen)
                 // Must happen before audio.play() or audio won't route through Web Audio
@@ -453,7 +452,7 @@ export class Player {
                 if (typeof activeElement.pause === 'function') activeElement.pause();
             });
 
-            navigator.mediaSession.setActionHandler('previoustrack', async () => {
+            await MediaSession.setActionHandler({ action: 'previoustrack' }, async () => {
                 // Ensure audio context is active for iOS lock screen controls
                 if (!audioContextManager.isReady()) {
                     audioContextManager.init(this.activeElement);
@@ -463,7 +462,7 @@ export class Player {
                 this.playPrev();
             });
 
-            navigator.mediaSession.setActionHandler('nexttrack', async () => {
+            await MediaSession.setActionHandler({ action: 'nexttrack' }, async () => {
                 // Ensure audio context is active for iOS lock screen controls
                 if (!audioContextManager.isReady()) {
                     audioContextManager.init(this.activeElement);
@@ -474,17 +473,17 @@ export class Player {
             });
 
             if (!this.isIOS) {
-                navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+                await MediaSession.setActionHandler({ action: 'seekbackward' }, (details) => {
                     const skipTime = details.seekOffset || 10;
                     this.seekBackward(skipTime);
                 });
-                navigator.mediaSession.setActionHandler('seekforward', (details) => {
+                await MediaSession.setActionHandler({ action: 'seekforward' }, (details) => {
                     const skipTime = details.seekOffset || 10;
                     this.seekForward(skipTime);
                 });
             }
 
-            navigator.mediaSession.setActionHandler('seekto', (details) => {
+            await MediaSession.setActionHandler({ action: 'seekto' }, (details) => {
                 if (details.seekTime !== undefined) {
                     this.activeElement.currentTime = Math.max(0, details.seekTime);
                     this.updateMediaSessionPositionState();
@@ -2104,37 +2103,38 @@ export class Player {
     }
 
     updateMediaSession(track) {
-        if (!('mediaSession' in navigator)) return;
-
-        // Force a refresh for picky Bluetooth systems by clearing metadata first
-        navigator.mediaSession.metadata = null;
 
         const coverId = track.album?.cover;
         const trackTitle = getTrackTitle(track);
 
-        navigator.mediaSession.metadata = new MediaMetadata({
-            title: trackTitle || 'Unknown Title',
-            artist: getTrackArtists(track) || 'Unknown Artist',
-            album: track.album?.title || 'Unknown Album',
-            artwork: coverId
-                ? [
-                      {
-                          src: this.api.getCoverUrl(coverId, '1280'),
-                          sizes: '1280x1280',
-                          type: 'image/jpeg',
-                      },
-                  ]
-                : undefined,
+        // Force a refresh for picky Bluetooth systems by clearing metadata first
+        MediaSession.setMetadata({})
+        .finally(() =>
+            MediaSession.setMetadata({
+                title: trackTitle || 'Unknown Title',
+                artist: getTrackArtists(track) || 'Unknown Artist',
+                album: track.album?.title || 'Unknown Album',
+                artwork: coverId
+                    ? [
+                          {
+                              src: this.api.getCoverUrl(coverId, '1280'),
+                              sizes: '1280x1280',
+                              type: 'image/jpeg',
+                          },
+                      ]
+                    : undefined,
+            })
+        )
+        .catch(() => {})
+        .finally(() => {
+            this.updateMediaSessionPlaybackState();
+            this.updateMediaSessionPositionState();
         });
-
-        this.updateMediaSessionPlaybackState();
-        this.updateMediaSessionPositionState();
     }
 
     updateMediaSessionPlaybackState() {
-        if (!('mediaSession' in navigator)) return;
         const isPlaying = !this.activeElement.paused;
-        navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+        void MediaSession.setPlaybackState({ playbackState: isPlaying ? 'playing' : 'paused' });
 
         // Start/stop Android foreground service to prevent background audio throttling
         this._updateBackgroundAudioService(isPlaying);
@@ -2171,9 +2171,6 @@ export class Player {
     }
 
     updateMediaSessionPositionState() {
-        if (!('mediaSession' in navigator)) return;
-        if (!('setPositionState' in navigator.mediaSession)) return;
-
         const el = this.activeElement;
         const duration = el.duration;
 
@@ -2181,15 +2178,14 @@ export class Player {
             return;
         }
 
-        try {
-            navigator.mediaSession.setPositionState({
-                duration: duration,
-                playbackRate: el.playbackRate || 1,
-                position: Math.min(el.currentTime, duration),
-            });
-        } catch (error) {
-            console.log('Failed to update Media Session position:', error);
-        }
+        MediaSession.setPositionState({
+            duration: duration,
+            playbackRate: el.playbackRate || 1,
+            position: Math.min(el.currentTime, duration),
+        })
+        .catch((error) => {
+                console.log('Failed to update Media Session position:', error);
+        });
     }
 
     async safePlay(element = this.activeElement) {
