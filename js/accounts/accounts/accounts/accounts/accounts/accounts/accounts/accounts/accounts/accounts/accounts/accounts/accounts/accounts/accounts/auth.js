@@ -5,7 +5,7 @@ export class AuthManager {
     constructor() {
         this.user = null;
         this.authListeners = [];
-        this.init().catch(console.error);
+        this.init();
     }
 
     async init() {
