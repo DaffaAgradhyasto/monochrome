@@ -2191,6 +2191,7 @@ export class UIRenderer {
             });
 
             this.player.activeElement.addEventListener('volumechange', updateFsVolumeUI);
+            window.addEventListener('volume-change', updateFsVolumeUI);
             updateFsVolumeUI();
         }
 
