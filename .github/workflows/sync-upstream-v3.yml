@@ -1,0 +1,230 @@
+name: Sinkronisasi Upstream dengan Build Verification
+
+on:
+  schedule:
+    # Cek setiap jam
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    inputs:
+      force_sync:
+        description: 'Paksa sinkronisasi meskipun sudah terbaru'
+        required: false
+        default: 'false'
+        type: boolean
+      skip_build_check:
+        description: 'Lewati pengecekan build (tidak disarankan)'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  UPSTREAM_REPO: monochrome-music/monochrome
+  UPSTREAM_BRANCH: main
+  TARGET_BRANCH: main-restore
+  TEMP_BRANCH: upstream-sync-temp
+  PROTECTED_PATHS: |
+    .github/workflows/
+    .github/FUNDING.yml
+    .github/agents/
+
+jobs:
+  sync-with-verification:
+    name: Sync & Verify Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+          ref: ${{ env.TARGET_BRANCH }}
+      
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Add upstream remote
+        run: |
+          git remote add upstream "https://github.com/${{ env.UPSTREAM_REPO }}.git" || true
+          git fetch upstream ${{ env.UPSTREAM_BRANCH }} --no-tags
+          echo "✅ Upstream fetched successfully"
+      
+      - name: Check sync status
+        id: check
+        run: |
+          BEHIND=$(git rev-list --count HEAD..upstream/${{ env.UPSTREAM_BRANCH }})
+          AHEAD=$(git rev-list --count upstream/${{ env.UPSTREAM_BRANCH }}..HEAD)
+          
+          echo "behind=$BEHIND" >> $GITHUB_OUTPUT
+          echo "ahead=$AHEAD" >> $GITHUB_OUTPUT
+          
+          echo "📊 Sync Status:"
+          echo "  - Behind upstream: $BEHIND commits"
+          echo "  - Ahead of upstream: $AHEAD commits"
+          
+          if [ "$BEHIND" -eq 0 ] && [ "${{ github.event.inputs.force_sync }}" != "true" ]; then
+            echo "needs_sync=false" >> $GITHUB_OUTPUT
+            echo "✅ Already up-to-date!"
+          else
+            echo "needs_sync=true" >> $GITHUB_OUTPUT
+            echo "🔄 Sync needed"
+          fi
+      
+      - name: Create temp branch for sync
+        if: steps.check.outputs.needs_sync == 'true'
+        run: |
+          git checkout -b ${{ env.TEMP_BRANCH }}
+          echo "🌿 Created temp branch: ${{ env.TEMP_BRANCH }}"
+      
+      - name: Backup protected files
+        if: steps.check.outputs.needs_sync == 'true'
+        run: |
+          mkdir -p /tmp/protected-backup
+          echo "$PROTECTED_PATHS" | while IFS= read -r path; do
+            path=$(echo "$path" | xargs)
+            [ -z "$path" ] && continue
+            if [ -e "$path" ]; then
+              mkdir -p "/tmp/protected-backup/$(dirname "$path")"
+              cp -r "$path" "/tmp/protected-backup/$path"
+              echo "  ✓ Backed up: $path"
+            fi
+          done
+      
+      - name: Merge upstream changes
+        if: steps.check.outputs.needs_sync == 'true'
+        id: merge
+        run: |
+          set -e
+          
+          if git merge upstream/${{ env.UPSTREAM_BRANCH }} \
+            --no-edit \
+            --allow-unrelated-histories \
+            -X ours \
+            -m "🔄 sync: merge upstream $(date +'%Y-%m-%d %H:%M')"; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "✅ Merge successful"
+          else
+            echo "⚠️ Merge conflicts detected, resolving..."
+            git diff --name-only --diff-filter=U | while IFS= read -r f; do
+              [ -z "$f" ] && continue
+              git checkout --ours "$f" 2>/dev/null || true
+              git add "$f"
+              echo "  ✓ Resolved: $f (kept our version)"
+            done
+            git commit --no-edit -m "🔄 sync: merge upstream with conflict resolution $(date +'%Y-%m-%d %H:%M')"
+            echo "status=resolved" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Restore protected files
+        if: steps.check.outputs.needs_sync == 'true'
+        run: |
+          echo "$PROTECTED_PATHS" | while IFS= read -r path; do
+            path=$(echo "$path" | xargs)
+            [ -z "$path" ] && continue
+            if [ -e "/tmp/protected-backup/$path" ]; then
+              cp -r "/tmp/protected-backup/$path" "$path"
+              echo "  ✓ Restored: $path"
+            fi
+          done
+          
+          if ! git diff --quiet; then
+            git add -A
+            git commit -m "🛡️ restore: protected files after upstream sync"
+            echo "✅ Protected files restored"
+          fi
+      
+      - name: Setup Node.js
+        if: steps.check.outputs.needs_sync == 'true' && github.event.inputs.skip_build_check != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        if: steps.check.outputs.needs_sync == 'true' && github.event.inputs.skip_build_check != 'true'
+        id: install
+        run: |
+          echo "📦 Installing dependencies..."
+          if npm ci; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "✅ Dependencies installed"
+          else
+            echo "status=failed" >> $GITHUB_OUTPUT
+            echo "❌ Failed to install dependencies"
+            exit 1
+          fi
+      
+      - name: Build verification
+        if: steps.check.outputs.needs_sync == 'true' && github.event.inputs.skip_build_check != 'true'
+        id: build
+        run: |
+          echo "🔨 Running build..."
+          if npm run build; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "✅ Build successful!"
+          else
+            echo "status=failed" >> $GITHUB_OUTPUT
+            echo "❌ Build failed!"
+            exit 1
+          fi
+      
+      - name: Push to target branch
+        if: steps.check.outputs.needs_sync == 'true' && (steps.build.outputs.status == 'success' || github.event.inputs.skip_build_check == 'true')
+        run: |
+          git remote set-url origin "https://x-access-token:${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          
+          # Merge temp branch into target branch
+          git checkout ${{ env.TARGET_BRANCH }}
+          git merge ${{ env.TEMP_BRANCH }} --ff-only -m "✅ sync: verified upstream merge"
+          
+          if git push origin ${{ env.TARGET_BRANCH }}; then
+            echo "✅ Successfully pushed to ${{ env.TARGET_BRANCH }}"
+            echo ""
+            echo "📋 Summary:"
+            echo "  - Synced ${{ steps.check.outputs.behind }} commits from upstream"
+            echo "  - Merge status: ${{ steps.merge.outputs.status }}"
+            echo "  - Build check: ${{ steps.build.outputs.status || 'skipped' }}"
+            echo "  - Local commits preserved: ${{ steps.check.outputs.ahead }}"
+          else
+            echo "❌ Failed to push"
+            exit 1
+          fi
+      
+      - name: Cleanup temp branch
+        if: always() && steps.check.outputs.needs_sync == 'true'
+        run: |
+          git checkout ${{ env.TARGET_BRANCH }} || true
+          git branch -D ${{ env.TEMP_BRANCH }} || true
+      
+      - name: Generate summary
+        if: always()
+        run: |
+          echo "## 🔄 Sync Upstream Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Upstream Repository | \`${{ env.UPSTREAM_REPO }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Behind upstream | ${{ steps.check.outputs.behind || 'n/a' }} commits |" >> $GITHUB_STEP_SUMMARY
+          echo "| Ahead of upstream | ${{ steps.check.outputs.ahead || 'n/a' }} commits |" >> $GITHUB_STEP_SUMMARY
+          echo "| Sync needed | ${{ steps.check.outputs.needs_sync || 'n/a' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Merge status | ${{ steps.merge.outputs.status || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build check | ${{ steps.build.outputs.status || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Target branch | \`${{ env.TARGET_BRANCH }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.build.outputs.status }}" = "failed" ]; then
+            echo "### ⚠️ Build Failed" >> $GITHUB_STEP_SUMMARY
+            echo "Upstream changes were not pushed because build verification failed." >> $GITHUB_STEP_SUMMARY
+            echo "This protects your production branch from broken code." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.check.outputs.needs_sync }}" = "true" ] && [ "${{ steps.build.outputs.status }}" = "success" ]; then
+            echo "### ✅ Sync Successful" >> $GITHUB_STEP_SUMMARY
+            echo "Upstream changes have been verified and pushed to \`${{ env.TARGET_BRANCH }}\`." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.check.outputs.needs_sync }}" = "false" ]; then
+            echo "### ✨ Already Up-to-Date" >> $GITHUB_STEP_SUMMARY
+            echo "No sync needed." >> $GITHUB_STEP_SUMMARY
+          fi
