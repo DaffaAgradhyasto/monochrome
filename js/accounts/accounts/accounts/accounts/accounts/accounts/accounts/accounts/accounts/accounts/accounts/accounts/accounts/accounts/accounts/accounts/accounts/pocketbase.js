@@ -1,2 +1,4 @@
 // Legacy compatibility - re-export from Appwrite sync
-export { syncManager } from './appwrite-sync.js';
+import { syncManager } from './appwrite-sync.js';
+export { syncManager };
+export const pb = syncManager.pb;

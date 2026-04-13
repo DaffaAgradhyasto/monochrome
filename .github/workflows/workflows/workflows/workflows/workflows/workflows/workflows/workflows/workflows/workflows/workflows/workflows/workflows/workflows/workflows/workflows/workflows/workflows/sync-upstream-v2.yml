@@ -44,6 +44,8 @@ env:
                   js/storage.js
                     js/settings.js
                             vite.config.ts
+                                js/accounts/
+                                    js/listening-party.js
 
 jobs:
   toggle:
@@ -242,6 +244,7 @@ jobs:
             fi
           fi
           echo "Validasi berhasil."
+
 
       - name: Push perubahan
         if: steps.auto.outputs.skip != 'true' && steps.check.outputs.needs_sync == 'true'
