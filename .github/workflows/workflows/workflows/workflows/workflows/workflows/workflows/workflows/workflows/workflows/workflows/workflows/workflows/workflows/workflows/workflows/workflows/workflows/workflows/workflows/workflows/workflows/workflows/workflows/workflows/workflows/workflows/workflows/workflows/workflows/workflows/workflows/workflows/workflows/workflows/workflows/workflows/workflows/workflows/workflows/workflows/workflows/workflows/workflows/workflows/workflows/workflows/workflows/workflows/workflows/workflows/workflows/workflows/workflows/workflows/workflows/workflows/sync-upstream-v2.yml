@@ -42,6 +42,8 @@ env:
             images/monochrome-logo.svg
             public/manifest.json
                   js/storage.js
+                    js/settings.js
+                            vite.config.ts
 
 jobs:
   toggle:
