@@ -2869,7 +2869,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const headerAccountIcon = document.getElementById('header-account-icon');
 
     // Temporarily disable accounts - show popup
-    const isAccountsDisabled = true;
+    const isAccountsDisabled = false;
 
     if (headerAccountBtn && headerAccountDropdown) {
         if (isAccountsDisabled) {
@@ -2878,9 +2878,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             headerAccountBtn.title = 'Accounts temporarily unavailable';
             headerAccountBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                alert(
-                    '(april 14, 2026) The server hosting the database has unfortunately fried. we are working extremely hard to recover all data and host the database & auth on a much more reliable server. please be patient with us in the time being.'
-                );
+                alert('.');
             });
         } else {
             headerAccountBtn.addEventListener('click', async (e) => {
