@@ -44,7 +44,7 @@ jobs:
           SHA="${{ github.sha }}"
           TAG="backup/$(date -u +"%Y%m%d-%H%M%S")-${SHA:0:7}"
           git tag "$TAG" "$SHA" -m "Auto-backup"
-          git push origin "$TAG" || echo "Tag already exists, skipping"
+          git push origin "$TAG"
           echo "BACKUP_TAG=$TAG" >> $GITHUB_ENV
       - run: |
           echo "## Auto Backup" >> $GITHUB_STEP_SUMMARY
