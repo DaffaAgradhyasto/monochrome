@@ -1637,6 +1637,7 @@
                             <use svg="!lucide/chevron-left.svg" size="20" />
                         </button>
                     </div>
+
                     <nav class="sidebar-nav main">
                         <ul>
                             <li class="nav-item" id="sidebar-nav-home">
@@ -1709,7 +1710,18 @@
                                 <!-- Pinned should be injected here -->
                             </ul>
                         </nav>
+
                         <div class="sidebar-nav-bottom">
+                            <div id="server-disruption-banner" class="server-disruption-sidebar" style="display: none">
+                                <span class="disruption-icon">&#9888;</span>
+                                <span
+                                    >Services are currently unstable. <br /><br />For Hi-Res streaming, use Chrome or
+                                    Safari.</span
+                                >
+                                <button id="dismiss-disruption-btn" class="disruption-dismiss" title="Dismiss">
+                                    &times;
+                                </button>
+                            </div>
                             <nav class="sidebar-nav bottom">
                                 <ul>
                                     <li class="nav-item" id="sidebar-nav-about-bottom">
@@ -4493,6 +4505,42 @@
 
                     <div class="settings-tab-content" id="settings-tab-instances">
                         <div class="settings-list">
+                            <div class="settings-group">
+                                <div class="setting-item">
+                                    <div class="info">
+                                        <span class="label" style="color: #f59e0b">Dev Mode</span>
+                                        <span class="description"
+                                            >Route all API requests through a local Tidal HiFi API server. Requires a
+                                            compatible server running at the specified URL.</span
+                                        >
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="dev-mode-toggle" />
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                <div class="setting-item" id="dev-mode-url-setting" style="display: none">
+                                    <div class="info">
+                                        <span class="label">Dev Mode API URL</span>
+                                        <span class="description">The URL of your local Tidal HiFi API instance</span>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        id="dev-mode-url-input"
+                                        placeholder="http://127.0.0.1:8000"
+                                        style="
+                                            width: 220px;
+                                            padding: 0.35rem 0.5rem;
+                                            border: 1px solid var(--border);
+                                            border-radius: var(--radius-md);
+                                            background: var(--card);
+                                            color: var(--foreground);
+                                            font-size: 0.8rem;
+                                        "
+                                    />
+                                </div>
+                            </div>
+
                             <div class="settings-group">
                                 <div class="setting-item">
                                     <div class="info">
