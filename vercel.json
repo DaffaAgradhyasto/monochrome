@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/proxy-audio",
+      "destination": "/api/proxy-audio"
+    }
+  ]
+}
