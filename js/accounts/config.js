@@ -6,8 +6,7 @@ const getEndpoint = () => {
 
   if (window.__APPWRITE_ENDPOINT__) return window.__APPWRITE_ENDPOINT__;
 
-  // Fallback ke Appwrite Cloud milikmu sendiri
-  return 'https://cloud.appwrite.io/v1';
+  return 'https://fra.cloud.appwrite.io/v1';
 };
 
 const getProject = () => {
@@ -16,7 +15,6 @@ const getProject = () => {
 
   if (window.__APPWRITE_PROJECT_ID__) return window.__APPWRITE_PROJECT_ID__;
 
-  // Ganti dengan Project ID milikmu dari Appwrite Console
   return '69ba589c0035145a5327';
 };
 
