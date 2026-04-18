@@ -108,7 +108,7 @@ jobs:
         run: |
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           git reset --hard ${{ env.TARGET }}
-          git push --force origin main
+              git push --force origin HEAD:main
           echo "Restore berhasil ke: ${{ env.TARGET }}"
       - name: Summary
         run: |
