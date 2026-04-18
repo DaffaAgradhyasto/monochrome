@@ -1,0 +1,84 @@
+name: Sync Fork from Upstream
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      force_sync:
+        description: Force sync even if up to date
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  sync:
+    name: Sync Fork
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          ref: main-restore
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/monochrome-music/monochrome.git || true
+          git fetch upstream main --no-tags
+
+      - name: Check if already up to date
+        id: check
+        run: |
+          UPSTREAM_HEAD=$(git rev-parse upstream/main)
+          FORK_HEAD=$(git rev-parse HEAD)
+          if [ "$UPSTREAM_HEAD" = "$FORK_HEAD" ]; then
+            echo "already_synced=true" >> $GITHUB_OUTPUT
+          else
+            echo "already_synced=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Backup custom files
+        if: steps.check.outputs.already_synced != 'true'
+        run: |
+          mkdir -p /tmp/backup
+          cp -r .github/workflows /tmp/backup/workflows || true
+          cp .github/FUNDING.yml /tmp/backup/FUNDING.yml 2>/dev/null || true
+          cp js/METADATA_STRINGS.js /tmp/backup/METADATA_STRINGS.js 2>/dev/null || true
+
+      - name: Merge upstream changes
+        if: steps.check.outputs.already_synced != 'true'
+        run: |
+          rm -f .git/index.lock .git/config.lock 2>/dev/null || true
+          git merge upstream/main --no-edit --strategy-option=theirs || (
+            git merge --abort 2>/dev/null || true
+            git reset --hard upstream/main
+          )
+
+      - name: Restore custom files
+        if: steps.check.outputs.already_synced != 'true'
+        run: |
+          rm -rf .github/workflows
+          cp -r /tmp/backup/workflows .github/workflows
+          cp /tmp/backup/FUNDING.yml .github/FUNDING.yml 2>/dev/null || true
+          cp /tmp/backup/METADATA_STRINGS.js js/METADATA_STRINGS.js 2>/dev/null || true
+
+      - name: Commit and push
+        if: steps.check.outputs.already_synced != 'true'
+        run: |
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "chore: sync with upstream monochrome-music/monochrome"
+            git push --force-with-lease origin main-restore
+            echo "Sync completed successfully."
+          fi
