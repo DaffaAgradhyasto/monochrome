@@ -1,0 +1,65 @@
+name: Auto Sync Upstream
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Setiap 6 jam
+  workflow_dispatch:  # Bisa dijalankan manual
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    name: Sync Fork dengan Upstream
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/monochrome-music/monochrome.git || true
+          git fetch upstream main
+
+      - name: Check if sync needed
+        id: check
+        run: |
+          LOCAL=$(git rev-parse HEAD)
+          UPSTREAM=$(git rev-parse upstream/main)
+          if [ "$LOCAL" = "$UPSTREAM" ]; then
+            echo "SYNC_NEEDED=false" >> $GITHUB_OUTPUT
+            echo "Already up to date with upstream"
+          else
+            echo "SYNC_NEEDED=true" >> $GITHUB_OUTPUT
+            BEHIND=$(git rev-list --count HEAD..upstream/main)
+            echo "$BEHIND commits behind upstream"
+          fi
+
+      - name: Sync dengan upstream (fast-forward)
+        if: steps.check.outputs.SYNC_NEEDED == 'true'
+        run: |
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git merge upstream/main --ff-only || {
+            echo "Fast-forward tidak bisa, mencoba discard dan reset ke upstream..."
+            git fetch upstream main
+            git reset --hard upstream/main
+          }
+          git push origin main --force
+          echo "Sync berhasil!"
+
+      - name: Summary
+        run: |
+          echo "## Hasil Sync" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.check.outputs.SYNC_NEEDED }}" = "true" ]; then
+            echo "Sync berhasil ke: $(git rev-parse --short HEAD)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Sudah up-to-date, tidak perlu sync" >> $GITHUB_STEP_SUMMARY
+          fi
