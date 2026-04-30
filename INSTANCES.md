@@ -1,3 +1,7 @@
+> [!important]
+> April 30th, 2026: this file is currently outdated, as we have switched away from hifi-api (kinda), however were lowk too lazy right now, though it will be updated soon.
+
+
 # Monochrome Instances
 
 This document lists public instances of Monochrome that you can use. Instances are community-hosted versions of Monochrome that provide access to the application.
@@ -24,8 +28,7 @@ PLEASE do not use any rehost of monochrome and complain to us about features not
 
 Monochrome uses the Hi-Fi API under the hood. Live, up-to-date status trackers (which return JSON) can be found below:
 
-- [https://tidal-uptime.jiffy-puffs-1j.workers.dev](https://tidal-uptime.jiffy-puffs-1j.workers.dev/)
-- [https://tidal-uptime.props-76styles.workers.dev](https://tidal-uptime.props-76styles.workers.dev/)
+- [https://tidal-uptime.geeked.wtf](https://tidal-uptime.geeked.wtf)
 
 These are available API endpoints that can be used with Monochrome or other Hi-Fi based applications:
 

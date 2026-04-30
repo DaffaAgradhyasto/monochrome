@@ -6,6 +6,9 @@ import {
     isTrackUnavailable,
     getExtensionFromBlob,
     getTrackDiscNumber,
+    normalizeQualityToken,
+    getTrackCoverId,
+    getCoverBlob,
 } from './utils.js';
 import { preferDolbyAtmosSettings, trackDateSettings, devModeSettings } from './storage.js';
 import { APICache } from './cache.js';
@@ -118,9 +121,15 @@ export class LosslessAPI {
             for (let attempt = 1; attempt <= maxTotalAttempts; attempt++) {
                 const instance = instances[instanceIndex % instances.length];
                 const baseUrl = typeof instance === 'string' ? instance : instance.url;
-                const url = baseUrl.endsWith('/')
+
+                const isTidal = baseUrl.includes('api.tidal.com') || baseUrl.includes('openapi.tidal.com');
+                const targetUrl = baseUrl.endsWith('/')
                     ? `${baseUrl}${relativePath.substring(1)}`
                     : `${baseUrl}${relativePath}`;
+
+                const url = isTidal
+                    ? `https://api.funny-domain.lol/${targetUrl.replace(/^https?:\/\//, '')}`
+                    : targetUrl;
 
                 try {
                     const response = await fetch(url, { signal: options.signal });
@@ -267,26 +276,35 @@ export class LosslessAPI {
     }
 
     prepareTrack(track) {
-        let normalized = track;
+        let normalized = { ...track };
 
         if (track.type && typeof track.type === 'string') {
             const lowType = track.type.toLowerCase();
             if (lowType.includes('video')) {
-                normalized = { ...track, type: 'video' };
+                normalized.type = 'video';
             } else if (lowType.includes('track')) {
-                normalized = { ...track, type: 'track' };
+                normalized.type = 'track';
             } else {
-                normalized = { ...track, type: lowType };
+                normalized.type = lowType;
             }
         }
 
-        if (!track.artist && Array.isArray(track.artists) && track.artists.length > 0) {
-            normalized = { ...normalized, artist: track.artists[0] };
+        if (!normalized.artist && Array.isArray(normalized.artists) && normalized.artists.length > 0) {
+            normalized.artist = normalized.artists[0];
+        } else if (normalized.artist && !normalized.artists) {
+            normalized.artists = [normalized.artist];
+        }
+
+        if (track.album) {
+            normalized.album = { ...track.album };
+            if (track.album.releaseDate) {
+                normalized.album.releaseDate = track.album.releaseDate;
+            }
         }
 
         const derivedQuality = deriveTrackQuality(normalized);
         if (derivedQuality && normalized.audioQuality !== derivedQuality) {
-            normalized = { ...normalized, audioQuality: derivedQuality };
+            normalized.audioQuality = derivedQuality;
         }
 
         normalized.isUnavailable = isTrackUnavailable(normalized);
@@ -575,11 +593,10 @@ export class LosslessAPI {
             const data = await response.json();
             const normalized = this.normalizeSearchResponse(data, 'tracks');
             const preparedTracks = normalized.items.map((t) => this.prepareTrack(t));
-            // Skip enrichment for search to be fast and lightweight
-            // const enrichedTracks = await this.enrichTracksWithAlbumDates(preparedTracks);
+            const enrichedTracks = await this.enrichTracksWithAlbumDates(preparedTracks);
             const result = {
                 ...normalized,
-                items: preparedTracks,
+                items: enrichedTracks,
             };
 
             if (!(response instanceof TidalResponse)) {
@@ -1341,14 +1358,10 @@ export class LosslessAPI {
 
         // Check if tracks already have artist info (some might)
         for (const track of tracks) {
-            if (track.artist && track.artist.id) {
-                artistMap.set(track.artist.id, track.artist);
-            }
-            if (track.artists && Array.isArray(track.artists)) {
-                for (const artist of track.artists) {
-                    if (artist.id) {
-                        artistMap.set(artist.id, artist);
-                    }
+            const artists = track.artists || (track.artist ? [track.artist] : []);
+            for (const artist of artists) {
+                if (artist.id) {
+                    artistMap.set(artist.id, artist);
                 }
             }
         }
@@ -1359,19 +1372,16 @@ export class LosslessAPI {
             for (const track of tracks.slice(0, 5)) {
                 try {
                     // Search for the track to get full metadata
-                    const searchQuery = `"${track.title}" ${track.artist?.name || ''}`.trim();
+                    const searchQuery =
+                        `"${track.title}" ${track.artist?.name || track.artists?.[0]?.name || ''}`.trim();
                     const searchResult = await this.searchTracks(searchQuery, { signal: AbortSignal.timeout(5000) });
 
                     if (searchResult.items && searchResult.items.length > 0) {
                         const foundTrack = searchResult.items[0];
-                        if (foundTrack.artist && foundTrack.artist.id) {
-                            artistMap.set(foundTrack.artist.id, foundTrack.artist);
-                        }
-                        if (foundTrack.artists && Array.isArray(foundTrack.artists)) {
-                            for (const artist of foundTrack.artists) {
-                                if (artist.id) {
-                                    artistMap.set(artist.id, artist);
-                                }
+                        const foundArtists = foundTrack.artists || (foundTrack.artist ? [foundTrack.artist] : []);
+                        for (const artist of foundArtists) {
+                            if (artist.id) {
+                                artistMap.set(artist.id, artist);
                             }
                         }
                     }
@@ -1428,7 +1438,7 @@ export class LosslessAPI {
             for (const t of tracks) {
                 if (!seenTrackIds.has(t.id)) {
                     seenTrackIds.add(t.id);
-                    recommendedTracks.push(t);
+                    recommendedTracks.push(this.prepareTrack(t));
                 }
             }
         });
@@ -1453,6 +1463,104 @@ export class LosslessAPI {
 
         // return exactly what parseTrackLookup expects
         return [trackStub, raw];
+    }
+
+    getTrackManifestFormats(quality) {
+        switch (normalizeQualityToken(quality) || quality) {
+            case 'DOLBY_ATMOS':
+                return ['EAC3_JOC'];
+            case 'HI_RES_LOSSLESS':
+                return ['FLAC_HIRES'];
+            case 'LOSSLESS':
+                return ['FLAC'];
+            case 'HIGH':
+                return ['AACLC'];
+            case 'LOW':
+                return ['HEAACV1'];
+            default:
+                return ['FLAC'];
+        }
+    }
+
+    getAdaptiveTrackManifestFormats() {
+        return ['FLAC_HIRES', 'FLAC', 'AACLC', 'HEAACV1', 'EAC3_JOC'];
+    }
+
+    shouldUseAdaptiveTrackManifest(download = false) {
+        if (download || typeof localStorage === 'undefined') {
+            return false;
+        }
+
+        try {
+            return (localStorage.getItem('adaptive-playback-quality') || '').toLowerCase() === 'auto';
+        } catch {
+            return false;
+        }
+    }
+
+    getAudioQualityFromManifestFormats(formats = []) {
+        if (formats.includes('EAC3_JOC')) return 'DOLBY_ATMOS';
+        if (formats.includes('FLAC_HIRES')) return 'HI_RES_LOSSLESS';
+        if (formats.includes('FLAC')) return 'LOSSLESS';
+        if (formats.includes('AACLC')) return 'HIGH';
+        if (formats.includes('HEAACV1')) return 'LOW';
+        return null;
+    }
+
+    async normalizeTrackManifestResponse(apiResponse, quality) {
+        if (!apiResponse || typeof apiResponse !== 'object') {
+            return apiResponse;
+        }
+
+        const raw = apiResponse.data?.data ?? apiResponse.data ?? apiResponse;
+        const attributes = raw?.attributes ?? {};
+        const manifestUrl = attributes.uri;
+
+        if (!manifestUrl) {
+            throw new Error('Malformed track manifests response');
+        }
+
+        const manifestResponse = await fetch(manifestUrl);
+        if (!manifestResponse.ok) {
+            throw new Error(`Failed to fetch signed track manifest: HTTP ${manifestResponse.status}`);
+        }
+
+        const manifestText = await manifestResponse.text();
+        const manifestMimeType =
+            manifestResponse.headers.get('content-type') ||
+            (manifestText.includes('<MPD') ? 'application/dash+xml' : 'application/octet-stream');
+        const normalizedQuality =
+            this.getAudioQualityFromManifestFormats(attributes.formats) || normalizeQualityToken(quality) || 'HIGH';
+
+        const isHiRes = normalizedQuality === 'HI_RES_LOSSLESS';
+        const isLossless = normalizedQuality === 'LOSSLESS' || isHiRes;
+        const trackNorm = attributes.trackAudioNormalizationData || {};
+        const albumNorm = attributes.albumAudioNormalizationData || {};
+
+        const info = {
+            trackId: Number(raw.id) || null,
+            assetPresentation: attributes.trackPresentation || 'FULL',
+            audioQuality: normalizedQuality,
+            manifestMimeType,
+            manifestHash: attributes.hash || '',
+            manifest: btoa(manifestText),
+            bitDepth: isHiRes ? 24 : isLossless ? 16 : undefined,
+            sampleRate: isHiRes ? 96000 : isLossless ? 44100 : undefined,
+            replayGain: trackNorm.replayGain,
+            trackReplayGain: trackNorm.replayGain,
+            trackPeakAmplitude: trackNorm.peakAmplitude,
+            albumReplayGain: albumNorm.replayGain,
+            albumPeakAmplitude: albumNorm.peakAmplitude,
+            drmData: attributes.drmData || null,
+            formats: attributes.formats || [],
+        };
+
+        const trackStub = {
+            duration: raw.duration ?? 0,
+            id: Number(raw.id) || null,
+        };
+
+        return [trackStub, info];
     }
 
     async getTrackMetadata(id) {
@@ -1502,19 +1610,72 @@ export class LosslessAPI {
         }
     }
 
-    async getTrack(id, quality = 'LOSSLESS') {
-        const cacheKey = `${id}_${quality}`;
+    async getTrack(id, quality = 'LOSSLESS', { adaptive = false } = {}) {
+        const cacheKey = `${id}_${quality}_${adaptive ? 'adaptive' : 'fixed'}`;
         const cached = await this.cache.get('track', cacheKey);
         if (cached) return cached;
 
-        const response = await this.fetchWithRetry(`/track/?id=${id}&quality=${quality}`, { type: 'streaming' });
+        const requestedQuality = normalizeQualityToken(quality) || quality || 'LOSSLESS';
+        const params = new URLSearchParams({
+            id: String(id),
+            quality: requestedQuality,
+            adaptive: String(adaptive),
+        });
+        const formats = adaptive ? this.getAdaptiveTrackManifestFormats() : this.getTrackManifestFormats(quality);
+        for (const format of formats) {
+            params.append('formats', format);
+        }
+
+        const response = await this.fetchWithRetry(`/trackManifests/?${params.toString()}`, { type: 'streaming' });
         const jsonResponse = await response.json();
-        const result = this.parseTrackLookup(this.normalizeTrackResponse(jsonResponse));
+        const result = this.parseTrackLookup(await this.normalizeTrackManifestResponse(jsonResponse, quality));
 
         if (!(response instanceof TidalResponse)) {
             await this.cache.set('track', cacheKey, result);
         }
         return result;
+    }
+
+    async getQobuzStreamUrl(isrc, quality = 'LOSSLESS') {
+        try {
+            const trackRes = await fetch(`https://qobuz.kennyy.com.br/api/get-music?q=${isrc}&offset=0`);
+            const trackJson = await trackRes.json();
+
+            const tracks = trackJson.data?.tracks?.items || [];
+            const match = tracks.find((t) => t.isrc?.toLowerCase() === isrc.toLowerCase()) || tracks[0];
+
+            if (match && match.id) {
+                const qobuzTrackId = match.id;
+                const qobuzQualityMap = {
+                    HI_RES_LOSSLESS: '27',
+                    LOSSLESS: '7',
+                    HIGH: '6',
+                    LOW: '5',
+                };
+                const qobuzQuality = qobuzQualityMap[quality] || '7';
+
+                const streamRes = await fetch(
+                    `https://qobuz.kennyy.com.br/api/download-music?track_id=${qobuzTrackId}&quality=${qobuzQuality}`
+                );
+                const streamJson = await streamRes.json();
+
+                if (streamJson.success && streamJson.data && streamJson.data.url) {
+                    let rgInfo = null;
+                    if (match.audio_info) {
+                        rgInfo = {
+                            trackReplayGain: match.audio_info.replaygain_track_gain,
+                            trackPeakAmplitude: match.audio_info.replaygain_track_peak,
+                            albumReplayGain: match.audio_info.replaygain_album_gain,
+                            albumPeakAmplitude: match.audio_info.replaygain_album_peak,
+                        };
+                    }
+                    return { url: streamJson.data.url, rgInfo };
+                }
+            }
+        } catch (e) {
+            console.error('Failed to resolve ISRC:', isrc, e);
+        }
+        return null;
     }
 
     async getStreamUrl(id, quality = 'LOSSLESS', download = false) {
@@ -1527,7 +1688,29 @@ export class LosslessAPI {
         let streamUrl;
         let manifestRgInfo = null;
 
-        const lookup = await this.getTrack(id, quality);
+        try {
+            const track = await this.getTrackMetadata(id);
+            if (track && track.isrc) {
+                const qobuzResult = await this.getQobuzStreamUrl(track.isrc, quality);
+                if (qobuzResult && qobuzResult.url) {
+                    const result = {
+                        url: qobuzResult.url,
+                        rgInfo: qobuzResult.rgInfo || {
+                            trackReplayGain: 0,
+                            trackPeakAmplitude: 1,
+                            albumReplayGain: 0,
+                            albumPeakAmplitude: 1,
+                        },
+                    };
+                    this.streamCache.set(cacheKey, result);
+                    return result;
+                }
+            }
+        } catch (e) {
+            console.warn('ISRC matching failed:', e);
+        }
+
+        const lookup = await this.getTrack(id, quality, { adaptive: this.shouldUseAdaptiveTrackManifest(download) });
 
         if (lookup.originalTrackUrl) {
             streamUrl = lookup.originalTrackUrl;
@@ -1609,27 +1792,47 @@ export class LosslessAPI {
         }
 
         const id = input?.id || input;
-        const track = typeof input === 'object' ? input : await this.getTrack(id, downloadQuality);
+        const track = typeof input === 'object' && input.isrc ? input : await this.getTrackMetadata(id);
         const isVideo = track?.type?.toLowerCase().includes('video');
-        downloadQuality = isCustomFormat(downloadQuality) ? 'LOSSLESS' : downloadQuality;
+        const cleanQuality = isCustomFormat(downloadQuality) ? 'LOSSLESS' : downloadQuality;
 
-        let lookup;
-        if (isVideo) {
-            lookup = await this.getVideo(id);
-        } else {
-            lookup = new PlaybackInfo(await this.getTrack(id, downloadQuality));
+        let lookup = null;
+        let qobuzRgInfo = null;
+        let qobuzStreamUrl = null;
+
+        if (!isVideo && track.isrc) {
+            try {
+                const qobuzResult = await this.getQobuzStreamUrl(track.isrc, cleanQuality);
+                if (qobuzResult && qobuzResult.url) {
+                    qobuzStreamUrl = qobuzResult.url;
+                    qobuzRgInfo = qobuzResult.rgInfo;
+                    lookup = {
+                        info: {
+                            audioQuality: cleanQuality,
+                            trackReplayGain: qobuzRgInfo?.trackReplayGain ?? 0,
+                            trackPeakAmplitude: qobuzRgInfo?.trackPeakAmplitude ?? 1,
+                            albumReplayGain: qobuzRgInfo?.albumReplayGain ?? 0,
+                            albumPeakAmplitude: qobuzRgInfo?.albumPeakAmplitude ?? 1,
+                        },
+                    };
+                }
+            } catch (e) {
+                console.warn('ISRC matching failed in enrichTrack:', e);
+            }
         }
 
-        if (input instanceof EnrichedTrack) {
-            return {
-                lookup,
-                enrichedTrack: input,
-                isVideo,
-            };
+        if (!lookup) {
+            if (isVideo) {
+                lookup = await this.getVideo(id);
+            } else {
+                lookup = new PlaybackInfo(await this.getTrack(id, cleanQuality));
+            }
         }
 
         const enrichedTrack = { ...this.prepareTrack(track) };
-        if (lookup.info) {
+        if (qobuzRgInfo) {
+            enrichedTrack.replayGain = new ReplayGain(qobuzRgInfo);
+        } else if (lookup.info) {
             enrichedTrack.replayGain = new ReplayGain({
                 trackReplayGain: lookup.info.trackReplayGain,
                 trackPeakAmplitude: lookup.info.trackPeakAmplitude,
@@ -1672,7 +1875,12 @@ export class LosslessAPI {
             enrichedTrack.album = new TrackAlbum(enrichedTrack.album);
         }
 
-        return { lookup, enrichedTrack: new EnrichedTrack(enrichedTrack), isVideo };
+        const finalEnriched = new EnrichedTrack(enrichedTrack);
+        const result = { lookup, enrichedTrack: finalEnriched, isVideo };
+        if (qobuzStreamUrl) {
+            result.qobuzStreamUrl = qobuzStreamUrl;
+        }
+        return result;
     }
 
     /**
@@ -1706,61 +1914,75 @@ export class LosslessAPI {
         const metadataModule = await import('./metadata.js');
         const { prefetchMetadataObjects, addMetadataToAudio } = metadataModule;
 
-        const { onProgress, track, calculateDashBytes = true } = options;
-        const prefetchPromises = prefetchMetadataObjects(track, this);
+        const { onProgress, track: inputTrack, calculateDashBytes = true } = options;
+
+        let prefetchPromises = null;
 
         try {
             // Custom FFMPEG formats are not native TIDAL qualities; download LOSSLESS and transcode
             let downloadQuality = isCustomFormat(quality) ? 'LOSSLESS' : quality;
 
-            const { lookup, enrichedTrack, isVideo } = await this.enrichTrack(track, { downloadQuality });
+            const enriched = await this.enrichTrack(inputTrack || id, { downloadQuality });
+            const { lookup, enrichedTrack, isVideo } = enriched;
 
+            let streamUrl = enriched.qobuzStreamUrl || null;
             let postProcessingQuality = lookup.info?.audioQuality ?? null;
-            let streamUrl;
             let blob;
 
-            if (lookup.originalTrackUrl) {
-                streamUrl = lookup.originalTrackUrl;
-            } else {
-                const findValue = (obj, key) => {
-                    if (!obj || typeof obj !== 'object') return null;
-                    if (obj[key]) return obj[key];
-                    for (const v of Object.values(obj)) {
-                        if (v && typeof v === 'object') {
-                            const f = findValue(v, key);
-                            if (f) return f;
-                        }
-                    }
-                    return null;
+            if (streamUrl) {
+                const coverId = getTrackCoverId(enrichedTrack);
+                prefetchPromises = {
+                    coverFetch: coverId ? getCoverBlob(this, coverId).catch(() => null) : Promise.resolve(null),
+                    lyricsFetch: Promise.resolve(null),
                 };
+            } else {
+                prefetchPromises = prefetchMetadataObjects(enrichedTrack, this);
+            }
 
-                const manifest = isVideo
-                    ? findValue(lookup, 'manifest') || findValue(lookup, 'Manifest')
-                    : lookup.info?.manifest;
-
-                if (!manifest) {
-                    throw new Error('Could not resolve manifest');
-                }
-
-                if (preferDolbyAtmosSettings.isEnabled() && track.audioModes?.includes('DOLBY_ATMOS')) {
-                    try {
-                        const stream = await this.getStreamUrl(id, 'DOLBY_ATMOS', true);
-                        const manifest = await fetch(stream.url, { signal: options.signal });
-                        const manifestText = await manifest.text();
-                        streamUrl = this.extractStreamUrlFromManifest(btoa(manifestText));
-
-                        if (streamUrl) {
-                            postProcessingQuality = 'DOLBY_ATMOS';
+            if (!streamUrl) {
+                if (lookup.originalTrackUrl) {
+                    streamUrl = lookup.originalTrackUrl;
+                } else {
+                    const findValue = (obj, key) => {
+                        if (!obj || typeof obj !== 'object') return null;
+                        if (obj[key]) return obj[key];
+                        for (const v of Object.values(obj)) {
+                            if (v && typeof v === 'object') {
+                                const f = findValue(v, key);
+                                if (f) return f;
+                            }
                         }
-                    } catch (err) {
-                        console.error('Failed to extract Dolby Atmos stream URL:', err);
-                    }
-                }
+                        return null;
+                    };
 
-                if (!streamUrl) {
-                    streamUrl = this.extractStreamUrlFromManifest(manifest);
+                    const manifest = isVideo
+                        ? findValue(lookup, 'manifest') || findValue(lookup, 'Manifest')
+                        : lookup.info?.manifest;
+
+                    if (!manifest) {
+                        throw new Error('Could not resolve manifest');
+                    }
+
+                    if (preferDolbyAtmosSettings.isEnabled() && enrichedTrack.audioModes?.includes('DOLBY_ATMOS')) {
+                        try {
+                            const stream = await this.getStreamUrl(id, 'DOLBY_ATMOS', true);
+                            const manifestRes = await fetch(stream.url, { signal: options.signal });
+                            const manifestText = await manifestRes.text();
+                            streamUrl = this.extractStreamUrlFromManifest(btoa(manifestText));
+
+                            if (streamUrl) {
+                                postProcessingQuality = 'DOLBY_ATMOS';
+                            }
+                        } catch (err) {
+                            console.error('Failed to extract Dolby Atmos stream URL:', err);
+                        }
+                    }
+
                     if (!streamUrl) {
-                        throw new Error('Could not resolve stream URL');
+                        streamUrl = this.extractStreamUrlFromManifest(manifest);
+                        if (!streamUrl) {
+                            throw new Error('Could not resolve stream URL');
+                        }
                     }
                 }
             }
@@ -1851,7 +2073,7 @@ export class LosslessAPI {
             }
 
             // Add metadata if track information is provided
-            if (track) {
+            if (enrichedTrack) {
                 onProgress?.({
                     stage: 'processing',
                     message: 'Adding metadata...',
