@@ -1,4 +1,5 @@
 import { EventEmitter } from 'events';
+import { wrapTidalUrl } from './proxy-utils.js';
 import type { PlaybackInfo } from './container-classes';
 
 type Params = Record<string, string | number | undefined | null>;
@@ -1189,18 +1190,18 @@ class HiFiClient {
     }
 
     static #buildUrl(base: string, params?: Params | URLSearchParams) {
-        if (!params) return base;
+        if (!params) return wrapTidalUrl(base);
         if (params instanceof URLSearchParams) {
             const u = new URL(base);
             u.search = params.toString();
-            return u.toString();
+            return wrapTidalUrl(u.toString());
         }
 
         const u = new URL(base);
         Object.entries(params)
             .filter(([, v]) => v !== undefined && v !== null && v !== '')
             .forEach(([k, v]) => u.searchParams.set(k, String(v)));
-        return u.toString();
+        return wrapTidalUrl(u.toString());
     }
 
     /**
@@ -1345,7 +1346,7 @@ class HiFiClient {
             const headers: Record<string, string> = {
                 authorization: `Bearer ${token}`,
             };
-            if (final.includes('openapi.tidal.com')) {
+            if (url.includes('openapi.tidal.com')) {
                 // Prefer JSON:API for OpenAPI endpoints, but do not require it exclusively.
                 // Some endpoints/proxies can still return compatible JSON.
                 headers['Accept'] = 'application/vnd.api+json, application/json;q=0.9, */*;q=0.8';
@@ -1784,6 +1785,13 @@ class HiFiClient {
                 };
             }
 
+            const parseIsoDuration = (iso: string | undefined): number | undefined => {
+                if (!iso || typeof iso !== 'string') return undefined;
+                const m = iso.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
+                if (!m || (!m[1] && !m[2] && !m[3])) return undefined;
+                return parseInt(m[1] || '0', 10) * 3600 + parseInt(m[2] || '0', 10) * 60 + parseInt(m[3] || '0', 10);
+            };
+
             const albums: any[] = [];
             const tracks: any[] = [];
 
@@ -1794,7 +1802,7 @@ class HiFiClient {
                         albums.push({
                             id: Number(al.id),
                             title: al.attributes?.title,
-                            duration: al.attributes?.duration ? 100 : undefined,
+                            duration: parseIsoDuration(al.attributes?.duration),
                             numberOfTracks: al.attributes?.numberOfItems,
                             releaseDate: al.attributes?.releaseDate,
                             type: al.attributes?.albumType,
@@ -1824,7 +1832,7 @@ class HiFiClient {
                         tracks.push({
                             id: Number(tr.id),
                             title: tr.attributes?.title,
-                            duration: tr.attributes?.duration ? 100 : undefined,
+                            duration: parseIsoDuration(tr.attributes?.duration),
                             album: albumInfo,
                             artist: { id: artist_data.id, name: artist_data.name },
                         });
@@ -1948,11 +1956,11 @@ class HiFiClient {
         }
 
         const bioRelData = payload?.data?.relationships?.biography?.data;
-        const bioRef = (Array.isArray(bioRelData) ? bioRelData[0] : bioRelData) as JsonApiRef | undefined;
+        const bioRef = Array.isArray(bioRelData) ? bioRelData[0] : bioRelData;
         const bioItem = bioRef
             ? (includedMap.get(`${bioRef.type}:${bioRef.id}`) ??
-               includedMap.get(`biographies:${bioRef.id}`) ??
-               includedMap.get(`biography:${bioRef.id}`))
+              includedMap.get(`biographies:${bioRef.id}`) ??
+              includedMap.get(`biography:${bioRef.id}`))
             : undefined;
 
         const data: ArtistBiography = {

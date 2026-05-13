@@ -4,10 +4,8 @@ import { SVG_RIGHT_ARROW } from './icons';
 
 export const apiSettings = {
     STORAGE_KEY: 'monochrome-api-instances-v9',
-    INSTANCES_URLS: [
-        'https://tidal-uptime.geeked.wtf',
-    ],
-    defaultInstances: { api: [], streaming: [] },
+    INSTANCES_URLS: ['https://tidal-uptime.geeked.wtf'],
+    defaultInstances: { api: [], streaming: [], qobuz: [] },
     userInstances: null,
     instancesLoaded: false,
     _loadPromise: null,
@@ -16,9 +14,11 @@ export const apiSettings = {
         if (this.userInstances) return this.userInstances;
         try {
             const stored = localStorage.getItem('monochrome-user-api-instances-v1');
-            this.userInstances = stored ? JSON.parse(stored) : { api: [], streaming: [] };
+            const parsed = stored ? JSON.parse(stored) : { api: [], streaming: [], qobuz: [] };
+            if (!parsed.qobuz) parsed.qobuz = [];
+            this.userInstances = parsed;
         } catch {
-            this.userInstances = { api: [], streaming: [] };
+            this.userInstances = { api: [], streaming: [], qobuz: [] };
         }
         return this.userInstances;
     },
@@ -96,13 +96,17 @@ export const apiSettings = {
                         { url: 'https://hund.qqdl.site', version: '2.6' },
                         { url: 'https://wolf.qqdl.site', version: '2.6' },
                     ],
+                    qobuz: [
+                        { url: 'https://qdl-api.monochrome.tf', version: '1.0' },
+                        { url: 'https://qobuz.kennyy.com.br', version: '1.0' },
+                    ],
                 };
                 this.instancesLoaded = true;
                 this._loadPromise = null;
                 return this.defaultInstances;
             }
 
-            let groupedInstances = { api: [], streaming: [] };
+            let groupedInstances = { api: [], streaming: [], qobuz: [] };
 
             const isBlockedInstance = (item) => {
                 const url = typeof item === 'string' ? item : item.url;
@@ -117,6 +121,15 @@ export const apiSettings = {
                 groupedInstances.streaming = data.streaming.filter((item) => !isBlockedInstance(item));
             } else if (groupedInstances.api.length > 0) {
                 groupedInstances.streaming = [...groupedInstances.api];
+            }
+
+            if (data.qobuz && Array.isArray(data.qobuz)) {
+                groupedInstances.qobuz = data.qobuz;
+            }
+
+            // Ensure default Qobuz instance is always available
+            if (groupedInstances.qobuz.length === 0) {
+                groupedInstances.qobuz = [{ url: 'https://qdl-api.monochrome.tf', version: '1.0' }];
             }
 
             this.defaultInstances = groupedInstances;
@@ -221,6 +234,10 @@ export const apiSettings = {
 
         if (instances.streaming && instances.streaming.length) {
             instances.streaming = prioritySort([...instances.streaming]);
+        }
+
+        if (instances.qobuz && instances.qobuz.length) {
+            instances.qobuz = shuffle([...instances.qobuz]);
         }
 
         this.saveInstances(instances);
@@ -2442,6 +2459,7 @@ export const sidebarSectionSettings = {
     SHOW_ABOUT_KEY: 'sidebar-show-about',
     SHOW_DISCORD_KEY: 'sidebar-show-discord',
     SHOW_GITHUB_KEY: 'sidebar-show-github',
+    SHOW_PARTY_KEY: 'sidebar-show-party',
     ORDER_KEY: 'sidebar-menu-order',
     DEFAULT_ORDER: [
         'sidebar-nav-home',
@@ -2452,6 +2470,7 @@ export const sidebarSectionSettings = {
         'sidebar-nav-settings',
         'sidebar-nav-about-bottom',
         'sidebar-nav-discordbtn',
+        'sidebar-nav-party',
         'sidebar-nav-githubbtn',
     ],
 
@@ -2577,6 +2596,19 @@ export const sidebarSectionSettings = {
         localStorage.setItem(this.SHOW_GITHUB_KEY, enabled ? 'true' : 'false');
     },
 
+    shouldShowParty() {
+        try {
+            const val = localStorage.getItem(this.SHOW_PARTY_KEY);
+            return val === null ? true : val === 'true';
+        } catch {
+            return true;
+        }
+    },
+
+    setShowParty(enabled) {
+        localStorage.setItem(this.SHOW_PARTY_KEY, enabled ? 'true' : 'false');
+    },
+
     normalizeOrder(order) {
         const baseOrder = this.DEFAULT_ORDER;
         const safeOrder = Array.isArray(order) ? order.filter((id) => baseOrder.includes(id)) : [];
@@ -2636,6 +2668,7 @@ export const sidebarSectionSettings = {
             { id: 'sidebar-nav-settings', check: this.shouldShowSettings() },
             { id: 'sidebar-nav-about-bottom', check: this.shouldShowAbout() },
             { id: 'sidebar-nav-discordbtn', check: this.shouldShowDiscord() },
+            { id: 'sidebar-nav-party', check: this.shouldShowParty() },
             { id: 'sidebar-nav-githubbtn', check: this.shouldShowGithub() },
         ];
 
